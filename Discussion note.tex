@@ -1,0 +1,1025 @@
+\documentclass{article}
+
+% Language setting
+% Replace `english' with e.g. `spanish' to change the document language
+\usepackage[english]{babel}
+
+% Set page size and margins
+% Replace `letterpaper' with`a4paper' for UK/EU standard size
+\usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+% Useful packages
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amsthm}
+\allowdisplaybreaks
+\numberwithin{equation}{section}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{corollary}{Corollary}[theorem]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{assumption}{Assumption}[section]
+\newtheorem{definition}{Definition}[section]
+
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\usepackage{graphicx}
+\usepackage{float} 
+\usepackage{subfigure}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\bibliographystyle{plain}
+\allowdisplaybreaks[2]
+
+\def\Argmin{\mathop{\mathrm{Argmin}}}
+
+
+\title{Discussion Note}
+\author{Zhang Hao}
+
+\begin{document}
+\maketitle
+
+
+\section{Introduction }
+Problems whose structure involves a separable objective function and variables subject to linear constraints are
+common in the fields of statistics, machine learning, scientific computing, etc. Many constrained and unconstrained
+optimization problems can be reformulated in this form. 
+
+A classic method to solve these method is ADMM. However, in each iteration, ADMM needs to compute the projection, 
+which can be time-consuming and memory-intensive. Therefore, in order to overcome this drawback, we can use other first-order
+algorithms such as Frank-Wolfe method.
+
+The Frank-Wolfe type method, also known as conditional gradient method, has become quite popular recently because it only requires to minimize the LO which is the linear approximation of the
+objective function. Compared to computing the projection in proximal gradient method, solving LO can be much more
+efficient in practice.
+
+In this paper, we consider the following problem
+\begin{align} \label{problem}
+    &\min f(x)+g(y) \nonumber  \\
+    &s.t.\hspace{2pt} Ax+By=c
+\end{align}
+where $A: \mathcal{E}_1 \rightarrow \mathcal{E}$, $B: \mathcal{E}_2 \rightarrow \mathcal{E}$ are linear maps, 
+$f: \mathcal{E}_1 \rightarrow \mathbb{R}\cup\{\infty\}$, 
+$g: \mathcal{E}_2 \rightarrow \mathbb{R}\cup\{\infty\}$ are two proper closed convex functions 
+and may not be smooth. In some application scenarios, it is easy to compute the projection onto $\mathrm{dom} f$. However, the projection onto $\mathrm{dom} g$ is not as straightforward. In contrast, 
+it is easy to solve the LO of $g$. Therefore, we can get $x_{k+1}$ by proximal gradient method and get $y_{k+1}$ by Frank-Wolfe
+method.  The details of algorithm is in Section \ref{section_convergence_Lipschitz}.
+
+In this paper, we first consider the situation that $f$ and $g$ have Lipschitz continous gradient. In this case, 
+we find that the function value $f(x^k)+ g(y^k)$ converges to the optimal value of problem \eqref{problem}
+at the rate of $\mathcal{O}\left( \frac{1}{\sqrt{k}} \right)$. Additionally, the iteration points $\{x^k\}$, $\{y^k\}$ 
+satisfy the property that $\|Ax^k+By^k-c\rVert$  converges to 0 at the rate of $\mathcal{O}\left(\frac{1}{\sqrt{k}}\right)$ 
+under some moderate assumptions. 
+Furthermore, we study the convergence rate of the sequence $\{x^k,y^k\}$ based on the 
+Kurdyka-\L{}ojasiewicz(KL) property. Finally, we present the numerical results of Hankel matrix optimization
+problem which has the form of \eqref{problem}.  
+
+Throughout this paper, let $D_x$ and $D_y$ denote the diameters of $\mathrm{dom}$ $f$ 
+and $\mathrm{dom}$ $g$ respectively, i.e.,
+\begin{align} \label{Definition_of_diameter}
+    D_x = \sup\limits_{x_1,x_2\in \mathrm{dom}f}\|x_1 -x_2\rVert,
+    D_y = \sup\limits_{y_1,y_2\in \mathrm{dom}g}\|y_1 -y_2\rVert
+\end{align}
+
+\begin{assumption} \label{Assumption 1}
+    Assume that $f = f_1 +f_2$, 
+    where $f_1$ is convex and smooth while $f_2$ is nonsmooth.
+    Besides, assume that   
+    $g = g_1 +g_2$, where $g_1$ is convex and smooth while $g_2$ is nonsmooth. 
+\end{assumption}
+
+\begin{assumption} \label{Assumption 2}
+    Assume that $\mathrm{dom} f$ and $\mathrm{dom} g$ are bounded, i.e, $D_x<\infty$ and $D_y < \infty$. 
+\end{assumption}
+
+\section{Notation and preliminaries}
+Throughout this paper, we use $\mathbb{N}$ to denote the set of nonnegative integers and $\mathcal{E}$, $\mathcal{E}_1$, $\mathcal{E}_2$ to denote the 
+finite dimensional real Hilbert spaces. For two vectors $x$ and $y$ in $\mathbb{R}^n$, we use $\langle x,y\rangle$
+to denote the inner product and $\|x\rVert$ to denote the Euclidean norm. Besides, for two matrices 
+$X$ and $Y$ in $\mathbb{R}^{m\times n}$, the Frobenius norm is denoted by $\|X\rVert_F$ and 
+the inner product is denoted by $\langle X,Y \rangle =\mathrm{tr}\left(X^TY\right)$.
+Let $A: \mathcal{E}_1\rightarrow \mathcal{E}$ be a linear operator. We use $\lambda_{\max}(A^*A)$ to denote the maximum eignvalue value of $A^TA  $.
+
+For a proper closed convex function $f$, we use $\partial f(x)$ to denote the subdifferential of $f$ at $x$, 
+i.e.
+\begin{align}
+    \partial f(x) = \left\{\xi \in \mathbb{R}^n: f(y)- f(x) \geq\langle \xi, y-x \rangle \hspace{4pt} \forall y \in \mathbb{R}^n\right\}
+    \nonumber
+\end{align}
+Besides, for a nonempty closed convex set $\mathcal{C}$, we use $\delta_{\mathcal{C}}$ to denote the indicator function, which
+is defined as 
+\begin{align}
+    \delta_{\mathcal{C}}(x) = \left\{ 
+        \begin{array}{cc}
+            0  & x\in \mathcal{C},  \nonumber \\
+            \infty & x \notin \mathcal{C}.  \nonumber
+        \end{array}
+     \right.  \nonumber
+\end{align}
+The normal cone of $\mathcal{C}$ at an $x\in\mathcal{C}$ is 
+defined as $\mathcal{N}_{\mathcal{C}}(x):=\partial\delta_{\mathcal{C}}(x)$. 
+
+In order to analyze the convergence in Section \ref{section_convergence_Lipschitz}, we also introduce the Abel's summation formula. Let
+$\{a_k\}$ and $\{b_k\}$ be two sequences. Then, 
+\begin{align}
+    \sum\limits_{k=0}^n a_k(b_k - b_{k+1}) = (a_0b_0 - a_{n}b_{n+1})+ \sum\limits_{k=1}^{n} b_{k}(a_{k}-a_{k-1})
+    \label{Abel formula}
+\end{align}
+
+Next, we introduce some important definitions that will be used in our convergence analysis. To start with, 
+we consider the following contraint qualification: 
+\begin{definition}
+    {\rm{\textbf{(CQ).}}} Recall that $f_2$ and $g_2$ are defined in Assumption \ref{Assumption 1}. 
+    We say the \textbf{CQ} holds if the following statement holds. 
+    \begin{align}
+        c \in A\hspace{2pt} \mathrm{ri}\left(\mathrm{dom}\hspace{2pt}f_2\right) +
+    B\hspace{2pt} \mathrm{ri}\left(\mathrm{dom}\hspace{2pt}g_2\right) \label{CQ} 
+    \end{align}
+\end{definition}
+\begin{lemma}
+    {\rm{\textbf{(Optimality condition).}}} \label{optimal}
+    Suppose that the constraint qualification \eqref{CQ} holds. 
+    We say that $x^*\in \mathrm{dom}f$ and $y^*\in \mathrm{dom}g$ are minimizers of problem $\eqref{problem}$ 
+    if and only if there exists a vector $\bar{\lambda} \in \mathcal{E}$ such that the following statements hold.
+    
+    $(\romannumeral1)$ $0 \in \partial f(x^*) + A^*\bar{\lambda}  $
+
+    $(\romannumeral2)$ $0 \in \partial g(y^*) + B^*\bar{\lambda} $
+
+    $(\romannumeral3)$ $Ax^* + By^* =c$
+    
+\end{lemma}
+
+Finally, we introduce the definitions and some useful lemmas of Kurdyka-\L{}ojasiewicz property and exponent.
+\begin{definition}
+    {\rm{\textbf{(KL property and exponent).}}} Suppose that $f$ is a proper closed convex function and it satisfies KL property 
+    at an $\bar{x}\in \mathrm{dom} \partial f$ if there exist $r\in (0,\infty]$, a neighborhood $U$ of $\bar{x}$
+    and a continuous concave function $\phi: [0,r) \rightarrow \mathbb{R}_+$ such that
+
+    {\rm{(\romannumeral1)}} $\phi(0) = 0$, $\phi$ is differentiable on $(0,r)$ and $\phi' >0$.
+
+    {\rm{(\romannumeral2)}} $\forall x\in U$ and $f(\bar{x}) \leq f(x) < f(\bar{x}) +r$, it holds that
+                            \begin{align}
+                                \phi'(f(x)-f(\bar{x}))\mathrm{dist}(0,\partial f(x)) \geq 1 \nonumber
+                            \end{align}
+    furthermore, if $\phi(x) = \rho x^{1-\alpha}$ for some $\rho>0$ and $\alpha\in[0,1)$. Then we can 
+    say that $f$ satisfies the KL property with exponent $\alpha$ at $\bar{x}$. 
+\end{definition}
+
+The next lemma taken from Lemma 3.10 in \cite{bolte2014proximal} plays an important role in analyzing the convergence rate of the whole sequence
+$\{x^k,y^k\}$. 
+\begin{lemma} \label{error_bound}
+    Suppose that $f$ is a proper, closed, convex and level-bounded function. 
+    Let $\Lambda := \Argmin f \neq \emptyset$. Suppose that $f$ satisfies the KL property with exponent $\alpha$ 
+    at each point in $\Lambda$. Then there exist $\epsilon>0$, $r_0>0$ and $c_0>0$ such that
+    \begin{align}
+        \mathrm{dist}(x,\Lambda) \leq c_0 (f(x)-\inf f)^{1-\alpha} \nonumber
+    \end{align}
+    for any $x\in \partial f$ with $dist(x,\Lambda) \leq \epsilon$ and $\inf f <f(x) < \inf f+ r_0$.
+\end{lemma}
+
+\section{Algorithm framework under Lipschitz continous assumption}\label{section_convergence_Lipschitz} 
+Before introducing our method for solving problem $\eqref{problem}$ under Assumption \ref{Assumption 1}, recall that $f=f_1 + f_2$, 
+$g=g_1+g_2$ and  $f_1,g_1$ are smooth. 
+Besides, our method for solving problem \eqref{problem} also relies on the following assumption. 
+\begin{assumption} \label{Assumption_Lipschitz_continuity}
+    Suppose that $f_1$ is smooth and has Lipschitz continuous gradient with constant $L_f$. Similarly, 
+    we can also suppose that $g_1$ is smooth and has Lipschitz continuous gradient with constant $L_g$.
+\end{assumption}
+
+Our algorithm is inspired by \cite{yu2020rc}. First, we use quadratic 
+penalty function to modify  problem $\eqref{problem}$ which is shown in $\eqref{problem_2}$ 
+with penalty parameter $\beta_k$:
+\begin{align}
+    \min\limits_{x\in \mathcal{E}_1,y \in \mathcal{E}_2} f(x) + g(y) + \beta_k h(x,y) 
+    \label{problem_2}
+\end{align}
+where $h(x,y) = \frac{1}{2}\|Ax+ By-c \rVert^2$.
+
+Next, compared to ADMM algorithm, we use proximal gradient method to obtain $x^{k+1}$ while use Frank
+Wolfe method to obtain $y^{k+1}$. Finally, we update $\beta_k$ by a certain rule. In Frank Wolfe step, we use the diminishing 
+stepsize $\alpha_k = \frac{2}{k+2}$. Notice that the penalty function 
+is quadratic. Therefore, to make sure that the algorithm is convergent, $\beta_k$ should be infinite 
+as $k\rightarrow \infty$. The full algorithm for solving problem \eqref{problem} is shown in Algorithm \ref{alg1}.
+
+
+\begin{algorithm}
+	%\textsl{}\setstretch{1.8}
+	\caption{Basic Algorithm}
+	\label{alg1}
+	\begin{algorithmic}
+		\STATE \textbf{Step 0} Choose $x^0 \in \mathrm{dom} f, y^0 \in \mathrm{dom} g$, $\beta_0>0$ and the positive sequences $\{\alpha_t\}$, $\{\beta_t\}$ 
+        with $\lim\limits_{t\rightarrow\infty}\alpha_t=0$ and $\lim\limits_{t\rightarrow \infty}\beta_t=\infty $. 
+        Let $\lambda_{A}=\lambda_{\max}(A^*A)$
+		\STATE \textbf{Step 1} For $t=0,1,\cdots$ compute   
+            \begin{align}
+                &x^{t+1} \in \Argmin \langle \nabla f_1(t^k) + \beta_{t}A^*(Ax^t+By^t-c), x-x^t\rangle +\frac{L_f+\lambda_A \beta_t}{2}\|x-x^t\rVert^2 +f_2(x) \label{get_x_k} \\
+                &u^t \in \Argmin \langle\nabla g_1(y^t) + \beta_{t}B^*(Ax^{t+1} +By^t-c),y\rangle +g_2(y) \label{get_uk} \\
+                &y^{t+1} = y^{t} +\alpha_t(u^t-y^t)  \label{get_y_k}
+            \end{align}
+	\end{algorithmic}  
+\end{algorithm}
+
+In order to establish the convergence results of the Algorithm \ref{alg1}, we first present some auxiliary lemmas.
+\begin{lemma} \label{lemma_of_rk}
+    Let $\delta \in (0,1]$  and suppose that $\beta_{t} = (t+1)^{\delta }$ and $\alpha_t = \frac{2}{t+2}$ for all $t\in \mathbb{N}$. Then, we have that 
+    \begin{align}
+        (1-\alpha_t)(\beta_{t}-\beta_{t-1}) \leq \alpha_t \beta_{t}
+    \end{align} 
+\end{lemma}
+\begin{proof}
+    \begin{align}
+        &(1-\alpha_t)(\beta_{t}-\beta_{t-1}) -\alpha_t \beta_{t} = \frac{t}{t+2}\left((t+1)^{\delta}
+        -t^{\delta}\right) -\frac{2}{t+2}(t+1)^{\delta} \nonumber \\
+        & \overset{\mathop{(a)}}{\leq} \frac{t}{t+2}\delta t^{\delta -1} -\frac{2}{t+2}(t+1)^{\delta} 
+        \overset{\mathop{(b)}}{\leq} \frac{t^{\delta}}{t+2} -\frac{2(t+1)^{\delta}}{t+2} \leq -\frac{(t+1)^{\delta}}{t+2} \leq 0
+        \nonumber
+    \end{align}
+    where $(a)$ holds because the function $x \mapsto x^{\delta}$ is concave and $(b)$ holds
+    because $\delta \leq 1$.
+\end{proof}
+
+\begin{lemma} \label{lemma_of_sum_Axk-Axk+1}
+    Let  $\{x^t\}$, $\{y^t\}$ be generated in Algorithm \ref{alg1}, $y^*$ be a point 
+    in $\mathrm{dom}$g, $\alpha_t = \frac{2}{t+2}$ and $\beta_{t} =(t+1)^{\delta}$ for some $\delta \in (0,1]$. 
+    Then we have for each $k\in\mathbb{N}$ that  
+    \begin{align}
+        &\left| \sum\limits_{t = 0}^k\alpha_t\beta_{t}(t+1)(t+2)\left\langle Ax^t- Ax^{t+1},By^t-By^* \right\rangle \right| \nonumber \\
+        \leq& 2 \beta_0 \left|\left\langle Ax^0, By^* \right\rangle \right|
+        + 2(k+1)^{1+\delta} \left|\left\langle  Ax^{k+1},By^* \right\rangle\right|
+        +2 \beta_0 \left| \left\langle Ax^0, By^0 \right\rangle \right|
+        + 2(k+1)^{1+\delta} \left| \left\langle  Ax^{k+1},By^k \right\rangle\right| \nonumber \\
+        &+ 2(1+\delta) \sum\limits_{t=1}^{k-1} (t+2)^{\delta} \left|\left\langle Ax^t, By^* \right\rangle\right|
+        + 2(1+\delta) \sum\limits_{t=1}^{k-1} (t+2)^{\delta} \left| \left\langle Ax^t, By^{t+1} \right\rangle\right| \nonumber \\
+        &+ 4 \sum\limits_{t=1}^{k-1}  (t+1)^{\delta} \left| \left\langle Ax^t, Bu^t-By^t \right\rangle \right|
+    \end{align}
+\end{lemma}
+\begin{proof}
+    First, we have that 
+    \begin{align}
+        &\left| \sum\limits_{t = 0}^k\alpha_t\beta_{t}(t+1)(t+2)\left\langle Ax^t- Ax^{t+1},By^t-y^* \right\rangle \right| \nonumber \\
+        &\leq \left| \sum\limits_{t = 0}^k\alpha_t\beta_{t}(t+1)(t+2)\left\langle Ax^t- Ax^{t+1},By^* \right\rangle \right|
+        + \left| \sum\limits_{t = 0}^k\alpha_t\beta_{t}(t+1)(t+2)\left\langle Ax^t- Ax^{t+1},By^t \right\rangle \right|
+        \label{sum_Axk-Axk+1_two_parts}
+    \end{align}
+    Next, in order to further estimate the first term in \eqref{sum_Axk-Axk+1_two_parts}, 
+    we use the Abel's summation formula by letting $a_k = \alpha_kr_k(k+1)(k+2)$ and $b_k = \langle Ax^k,By^* \rangle$ in \eqref{Abel formula}.
+    \begin{align} 
+        &\left| \sum\limits_{t = 0}^k\alpha_t\beta_{t}(t+1)(t+2)\left\langle Ax^t- Ax^{t+1},By^* \right\rangle \right| \nonumber \\
+        \overset{\mathop{(a)}}{=}& \Bigg| 2\alpha_0\beta_0 \left\langle Ax^0, By^* \right\rangle -\alpha_k\beta_{k}(k+1)(k+2)\left\langle  Ax^{k+1},By^* \right\rangle \nonumber \\
+        &+ \left. \sum\limits_{t=1}^{k-1} \left[ -\alpha_t\beta_{t}(t+1)(t+2)\left\langle Ax^t, By^* \right\rangle
+        +  \alpha_{t+1}\beta_{t+1}(t+2)(t+3)\left\langle Ax^t, By^* \right\rangle\right] \right|    \nonumber \\
+        \leq &\left| 2\alpha_0\beta_0 \left\langle Ax^0, By^* \right\rangle \right| +\left|\alpha_k\beta_{k}(k+1)(k+2)\left\langle  Ax^{k+1},By^* \right\rangle\right| \nonumber \\
+        &+\left| \sum\limits_{t=1}^{k-1} \left(\alpha_{t+1}\beta_{t+1}(t+2)(t+3) -\alpha_t\beta_{t}(t+1)(t+2)\right)\left\langle Ax^t, By^* \right\rangle\right| \nonumber \\
+        \overset{\mathop{(b)}}{\leq} &2\left| \beta_0 \left\langle Ax^0, By^* \right\rangle \right|
+        + 2\left|(k+1)^{1+\delta}\left\langle  Ax^{k+1},By^* \right\rangle\right|
+        +2\left| \sum\limits_{t=1}^{k-1} \left((t+2)^{1+\delta} -(t+1)^{1+\delta}\right)\left\langle Ax^t, By^* \right\rangle\right| 
+        \nonumber \\ 
+        \overset{\mathop{(c)}}{\leq} & 2 \beta_0 \left|\left\langle Ax^0, By^* \right\rangle \right|
+        + 2(k+1)^{1+\delta}\left|\left\langle  Ax^{k+1},By^* \right\rangle\right|
+        +2(1+\delta) \sum\limits_{t=1}^{k-1} (t+2)^{\delta} \left|\left\langle Ax^t, By^* \right\rangle\right| 
+        \label{Axk_Axk+1,By*}
+    \end{align}
+    where $(a)$ holds due to Abel's summation formula, $(b)$ holds due to the definitions 
+    of $\alpha_t$, $\beta_{t}$ and $\alpha_t\beta_t(t+1)(t+2)=2(t+1)^{1+\delta}$ and $(c)$ holds because
+    the function $x \mapsto x^{1+\delta}$ is convex.
+    
+    To further analyze the second term in \eqref{sum_Axk-Axk+1_two_parts}, we use the method which is 
+    similar to Abel' summation formula. 
+    \begin{align}
+        &\left| \sum\limits_{t = 0}^k\alpha_t\beta_{t}(t+1)(t+2)\left\langle Ax^t- Ax^{t+1},By^t \right\rangle \right| \nonumber \\
+        \overset{(a)}{=}& \Bigg| 2\alpha_0\beta_0 \langle Ax^0, By^0 \rangle -\alpha_k\beta_k(k+1)(k+2)\langle Ax^{t+1}, By^t \rangle  \nonumber \\
+        &+\left.\sum\limits_{t=0}^k\left(-\alpha_t\beta_t(t+1)(t+2)\langle Ax^t, By^t \rangle+\alpha_{t+1}\beta_{t+1}(t+2)(t+3)
+        \langle Ax^{t}, By^{t+1} \rangle\right) \right| \nonumber \\
+        =& \Bigg| 2\alpha_0\beta_0 \langle Ax^0, By^0 \rangle -\alpha_k\beta_k(k+1)(k+2)\langle Ax^{t+1}, By^t \rangle  \nonumber \\
+        &+\sum\limits_{t=0}^n\left(-\alpha_t\beta_t(t+1)(t+2)\langle Ax^t, By^t \rangle+\alpha_t\beta_{t}(t+1)(t+2) 
+        \langle Ax^{t}, By^{t+1} \rangle\right)  \nonumber \\
+        & \left.+ \sum\limits_{t=0}^k\left(\alpha_{t+1}\beta_{t+1}(t+2)(t+3) - \alpha_t\beta_t(t+1)(t+2)\langle Ax^t, By^{t+1} \rangle\right) \right| \nonumber \\
+       \leq & \left| 2\beta_0 \left\langle Ax^0, By^0 \right\rangle \right|
+        + \left|2(k+1)^{1+\delta}\left\langle  Ax^{k+1},By^k \right\rangle\right| +\left| \sum\limits_{t=1}^{k-1}\alpha_t \beta_{t}(t+1)(t+2) \left\langle Ax^t, By^{t+1}-By^t \right\rangle \right| \nonumber \\
+        & + \left|\sum\limits_{t=1}^{k-1}\left(\alpha_{t+1}\beta_{t+1}(t+2)(t+3) - \alpha_t\beta_{t}(t+1)(t+2)\right)\left\langle Ax^t, By^{t+1} \right\rangle \right| \nonumber \\
+        \overset{\mathop{(b)}}{\leq} & 2 \beta_0 \left| \left\langle Ax^0, By^0 \right\rangle \right|
+        + 2(k+1)^{1+\delta} \left| \left\langle  Ax^{k+1},By^k \right\rangle\right| 
+        + \sum\limits_{t=1}^{k-1} \left| \alpha_t \beta_{t} (t+1)(t+2) \left\langle Ax^t, \alpha_tB(u^t-y^t) \right\rangle \right| \nonumber \\
+        & +\left|\sum\limits_{t=1}^{k-1}\left(\alpha_{t+1}\beta_{t+1}(t+2)(t+3) - \alpha_t\beta_{t}(t+1)(t+2)\right)\left\langle Ax^t, By^{t+1} \right\rangle \right|
+        \nonumber \\
+        \overset{\mathop{(c)}}{\leq} & 2 \beta_0 \left| \left\langle Ax^0, By^0 \right\rangle \right|
+        + 2(k+1)^{1+\delta} \left| \left\langle  Ax^{k+1},By^k \right\rangle\right| 
+        + \sum\limits_{t=1}^{k-1} \left| \alpha_t^2 \beta_{t} (t+1)(t+2) \left\langle Ax^t, B(u^t-y^t) \right\rangle \right| \nonumber \\
+        & +2(1+\delta) \sum\limits_{t=1}^{k-1} (t+2)^{\delta} \left| \left\langle Ax^t, By^{t+1} \right\rangle\right|
+        \nonumber \\
+        \overset{\mathop{(d)}}{\leq} &2 \beta_0 \left|\left\langle Ax^0, By^0 \right\rangle \right|
+        + 2(k+1)^{1+\delta}\left|\left\langle  Ax^{k+1},By^k \right\rangle\right| 
+        + 4 \sum\limits_{t=1}^{k-1} \left|\beta_{t}\left\langle Ax^t, Bu^t-By^t \right\rangle \right| \nonumber \\
+        & +2(1+\delta) \sum\limits_{t=1}^{k-1} (t+2)^{\delta} \left| \left\langle Ax^t, By^{t+1} \right\rangle\right|
+        \label{Axk_Axk+1,Byk}
+    \end{align}
+    where $(a)$ holds by rearranging the terms which is similar to Abel's formula, $(b)$ holds due to \eqref{get_y_k}, $(c)$ holds 
+    because the function $x \mapsto x^{1+\delta}$ is convex and $\alpha_t\beta_t(t+1)(t+2) = 2(t+1)^{1+\delta}$. 
+    Besides, $(d)$ holds because of the definition of $\beta_t$ and $\alpha_t^2(t+1)(t+2)\leq 4$. 
+    Combining  $\eqref{Axk_Axk+1,By*}$ with $\eqref{Axk_Axk+1,Byk}$, we obtain the desired result.
+\end{proof}
+
+
+\section{Convergence analysis}
+\subsection{Convergence rate analysis}
+\begin{theorem} \label{theorem_convergence_Lipschitz}
+    Consider problem \eqref{problem} and the Algorithm \ref{alg1} for solving problem \eqref{problem}. 
+    Suppose that the Assumptions \ref{Assumption 1}, \ref{Assumption 2}, \ref{Assumption_Lipschitz_continuity} 
+    and CQ \eqref{CQ} hold. Let $x^*$, $y^*$, and $\bar{\lambda}$ be defined in lemma \ref{optimal}, 
+    $\alpha_k=\frac{2}{k+2}$ and $\beta_{k} =\sqrt{k+1}$ for all $k\in \mathbb{N}$. 
+    Let the sequences $\{x^k\}$, $\{y^k\}$ and $\{u^k\}$ be generated by Algorithm \ref{alg1}. 
+    Then it holds that for all $k\in \mathbb{N}$:
+    \begin{align}
+        \left|f(x^{k}) + g(y^{k})  - f(x^*) -g(y^*) \right| 
+        \leq \max\left\{ \tau_k, \|\bar{\lambda} \rVert \gamma_k \right\}
+    \end{align}
+    and 
+    \begin{align}
+        \| Ax^k +By^k-c \rVert \leq \gamma_k
+    \end{align}
+    where
+    \begin{align}
+        &\tau_k=\frac{2c_1+2c_4}{\sqrt{k+1}} +\frac{c_2}{k+1}+ \frac{c_3}{k(k+1)} \nonumber \\
+        &\gamma_k =\frac{\|\bar{\lambda}\rVert}{\sqrt{k}}+ \sqrt{\frac{\|\bar{\lambda}\rVert^2}{k}+\frac{4c_1+4c_4}{\sqrt{k(k+1)}} 
+        +\frac{2c_2}{(k+1)\sqrt{k}}+ \frac{2c_3}{k\sqrt{k}(k+1)}} \nonumber 
+    \end{align}
+    and
+    \begin{align}
+        c_1= (2\lambda_{A} D_x^2+ 2\lambda_{B} D_y^2), c_2=2L_fD_x^2+2L_gD_y^2, c_3=2|\langle Ax^0,By^*\rangle|+2\left|\langle Ax^0, By^0\rangle \right|, c_4 = \frac{40}{3}D_2;
+        \nonumber
+    \end{align}
+    here, $L_f$, $L_g$ are the Lipschitz constants of $f_1$, $g_1$ which are defined in Assumption \ref{Assumption_Lipschitz_continuity}, 
+    $D_x$ and $D_y$ are given in \eqref{Definition_of_diameter}, $D_2 = \max\limits_{x\in\mathrm{dom}f,y\in\mathrm{dom}g}\left| \langle Ax,By\rangle \right|$,   
+    $\lambda_{A} =\lambda_{\max}(A^*A)$, $\lambda_{B} = \lambda_{\max}(B^*B)$ and $h(x,y)$ is defined in \eqref{problem_2}. 
+\end{theorem}
+\begin{proof}
+    Recall that $\lambda_{A} = \lambda_{\max}(A^*A)$, $h(x,y) =\frac{1}{2}\|Ax+By-c\rVert^2$.  
+    Let $(x^t,y^t)$ be the $t$-th iteration result. Due to the convexity of $\mathrm{dom}f$, 
+    we have that the point $x^t + \alpha_t(x^*-x^t)$ is also in $\mathrm{dom}f$.   
+    Therefore, 
+    \begin{align}
+        &f_1(x^{t+1})+ \beta_{t}h(x^{t+1},y^k) +f_2(x^{t+1})  \nonumber \\
+        \overset{\mathop{(a)}}{\leq}& f_1(x^t) +\beta_{t}h(x^t,y^t) +\left\langle \nabla f_1(x^t)+\beta_{t}A^*(Ax^t+By^t-c), x^{t+1} -x^t\right\rangle   \nonumber \\
+        & + \frac{L_f+\lambda_{A} \beta_{t}}{2}\|x^{t+1} - x^{t}\rVert^2 +f_2(x^{t+1}) \nonumber \\
+        \overset{\mathop{(b)}}{\leq}& f_1(x^t) +\beta_{t}h(x^t,y^t) +\left\langle \nabla f_1(x^t)+\beta_{t}A^*(Ax^t+By^t-c), x^t+\alpha_t(x^*-x^t) -x^t\right\rangle \nonumber \\
+        &+ \frac{L_f+\lambda_{A} \beta_{t}}{2}\|x^t+\alpha_t(x^*-x^t) -x^t\rVert^2 +f_2\left(x^t+\alpha_t(x^*-x^t) \right)  \nonumber \\
+        \overset{\mathop{(c)}}{\leq}& f_1(x^t) +\beta_{t}h(x^t,y^t) +\alpha_t\beta_{t}\left\langle  A^*(Ax^t+By^t-c), x^* -x^t\right\rangle+ \alpha_t\left( f_1(x^*)-f_1(x^t)\right)  \nonumber\\
+        &+ \frac{L_f+\lambda_{A} \beta_{t}}{2}\alpha_t^2\|x^* - x^{t}\rVert^2 + \alpha_t f_2(x^*) +(1-\alpha_t)f_2(x^t)  \nonumber \\
+        \overset{\mathop{(d)}}{=}& (1-\alpha_t)f(x^t) +\beta_{t}h(x^t,y^t) +\alpha_t f(x^*)+\alpha_t\beta_{t}\left\langle  A^*(Ax^t+By^t-c), x^* -x^t\right\rangle \nonumber \\
+        &+ \frac{L_f+\lambda_{A} \beta_{t}}{2}\alpha_t^2\|x^* - x^{t}\rVert^2
+        \label{f_1_poposition_1}
+    \end{align}
+    where $(a)$ holds because $f_1,\beta_th(\cdot,y^t)$ have Lipschitz gradients with constant $L_f$, $\beta_t, \lambda_{A}$ respectively, $(b)$ holds because $x^t+\alpha_t(x^*-x^t)$ is in $\mathrm{dom}f$ and $x^{t+1}$ 
+    is the minimizer (see \eqref{get_x_k}), $(c)$ holds because $f_1$ and $f_2$ are convex, 
+    $(d)$ holds because $f=f_1+f_2$. 
+
+    Next, by rearranging the terms, we obtain that 
+    \begin{align}
+         &f(x^{t+1})+ \beta_{t}h(x^{t+1},y^k) -f(x^*) \nonumber \\
+         \leq& (1-\alpha_t)\left(f(x^t) -f(x^*)\right) +\beta_{t}h(x^t,y^t)+\alpha_t\beta_{t}\langle Ax^t+By^t-c,A(x^*-x^t)\rangle \nonumber\\
+         &+\frac{L_f+\lambda_{A} \beta_{t}}{2}\alpha_t^2\|x^* - x^{t}\rVert^2 \nonumber \\
+         \overset{\mathop{(a)}}{\leq}& (1-\alpha_t)\left(f(x^t) -f(x^*)\right) +\beta_{t}h(x^t,y^t)+\alpha_t\beta_{t}\langle Ax^t+By^t-c,A(x^*-x^t)\rangle +\frac{L_f+\lambda_{A} \beta_{t}}{2}\alpha_t^2D_x^2 \label{f_k+1}
+    \end{align}
+    where $(a)$ holds because of the definition of $D_x$ in \eqref{Definition_of_diameter}.
+
+    Next, recalling that $\lambda_{B} = \lambda_{\max}(B^*B)$, we have that 
+    \begin{align}
+        &g(y^{t+1}) +\beta_{t}h(x^{t+1},y^{t+1}) -g(y^*) \nonumber \\
+        \overset{(a)}{\leq} &g_1(y^t) +\beta_{t}h(x^{t+1},y^t)+\langle \nabla g_1(y^t)+\beta_{t}B^*(Ax^{t+1}+By^t-c), y^{t+1} -y^t \rangle \nonumber\\
+        &+\frac{L_g +\lambda_{B} \beta_{t}}{2}\|y^{t+1} -y^t\rVert^2 +g_2(y^{t+1}) -g(y^*) \nonumber \\
+        \overset{\mathop{(b)}}{\leq}& g_1(y^t)+\beta_{t}h(x^{t+1},y^t) +\alpha_t\langle \nabla g_1(y^t)+\beta_{t}B^*(Ax^{t+1}+By^t-c), u^t -y^t \rangle \nonumber\\
+        &+\frac{L_g +\lambda_{B} \beta_{t}}{2}\alpha_t^2\|u^t -y^t\rVert^2 +g_2(y^{t+1}) -g(y^*)
+        \label{g_yk-gy*_1}
+    \end{align}
+    where $(a)$ holds because $g_1$ and $\beta_{t}h(x^{t+1},\cdot)$ have Lipschitz gradients with 
+    constants $L_g$ and $\beta_t\lambda_{B}$ respectively, $(b)$ holds because $y^{t+1} = y^t+\alpha_t(u^t-y^t)$ 
+    (see \eqref{get_y_k}). 
+    Notice that $g_2$ is convex and we get that 
+    \begin{align}
+        &\alpha_t\langle \nabla g_1(y^t)+\beta_{t}B^*(Ax^{t+1}+By^t-c), u^t -y^t \rangle  +g_2(y^{t+1}) \nonumber \\
+        \leq & \alpha_t\langle \nabla g_1(y^t)+\beta_{t}B^*(Ax^{t+1}+By^t-c), u^t -y^t \rangle  +\alpha_tg_2(u^t) +(1-\alpha_t)g_2(y^t) \nonumber \\
+        \overset{\mathop{(a)}}{\leq}& \alpha_t\langle \nabla g_1(y^t)+\beta_{t}B^*(Ax^{t+1}+By^t-c), y^* -y^t \rangle  +\alpha_tg_2(y^*) +(1-\alpha_t)g_2(y^t) \nonumber\\
+        \leq& \alpha_t(g_1(y^*)-g_1(y^t)) +\alpha_t\beta_t \langle Ax^{t+1}+By^t-c, B(y^* -y^t) \rangle +\alpha_tg_2(y^*) +(1-\alpha_t)g_2(y^t)
+        \label{g_yk-gy^*_2}
+    \end{align}
+    where $(a)$ holds because of $\eqref{get_uk}$ and the last inequality holds because $g_1$ is convex.
+    Therefore, we have upon combining \eqref{g_yk-gy*_1} and \eqref{g_yk-gy^*_2} that
+    \begin{align}
+        &g(y^{t+1}) +\beta_{t}h(x^{t+1},y^{t+1}) -g(y^*) \nonumber \\
+        \leq& (1-\alpha_t)(g(y^t)-g(y^*))+\beta_{t}h(x^{t+1},y^t)+ \alpha_t\beta_{t}\langle Ax^{t+1} +By^t -c, By^* -By^t\rangle \nonumber \\
+        &+\frac{L_g+\lambda_{B} \beta_t}{2} \alpha_t^2 \|u^t-y^t\rVert^2 \nonumber \\
+        \leq& (1-\alpha_t)(g(y^t)-g(y^*))+\beta_{t}h(x^{t+1},y^t)+ \alpha_t\beta_{t}\langle Ax^{t+1} +By^t -c, By^* -By^t\rangle +\frac{L_g+\lambda_{B} \beta_t}{2} \alpha_t^2D_y^2
+        \label{g_k+1}
+    \end{align}
+    where the last inequality follows from the definition of $D_y$ in \eqref{Definition_of_diameter}.  
+    Summing $\eqref{f_k+1}$ and $\eqref{g_k+1}$, we have that 
+    \begin{align}
+        &f(x^{t+1}) +g(y^{t+1}) +\beta_{t}h(x^{t+1},y^{t+1}) -f(x^*) -g(y^*) \nonumber \\
+        \leq& (1-\alpha_t)\left(f(x^t) +g(y^t) -f(x^*)-g(y^*)\right) +\beta_{t}h(x^t,y^t)+\alpha_t\beta_{t}\langle Ax^t+By^t-c,Ax^*-Ax^t\rangle \nonumber \\
+        &+ \alpha_t\beta_{t}\langle Ax^{t+1} +By^t -c, By^* -By^t\rangle +\frac{L_f+\lambda_{A} \beta_{t}}{2}\alpha_t^2D_x^2+ \frac{L_g +\lambda_{B} \beta_{t}}{2}\alpha_t^2D_y^2 \nonumber \\
+        =& (1-\alpha_t)\left(f(x^t) +g(y^t)+\beta_{t-1}h(x^t,y^t) -f(x^*)-g(y^*)\right)+\alpha_t\beta_{t}\langle Ax^t+By^t-c,Ax^*-Ax^t\rangle \nonumber \\
+        &+ \alpha_t\beta_{t}\langle Ax^{t+1} +By^t -c, By^* -By^t\rangle +\frac{L_f+\lambda_{A} \beta_{t}}{2}\alpha_t^2D_x^2+ \frac{L_g +\lambda_{B} \beta_{t}}{2}\alpha_t^2D_y^2
+        \nonumber \\
+        & +(1-\alpha_t)(\beta_{t}-\beta_{t-1})h(x^t,y^t) + \alpha_t\beta_{t} h(x^t,y^t) \label{F_k-F_k+1}
+    \end{align}
+    Next, we can notice that  
+    \begin{align}
+        &(1-\alpha_t)(\beta_{t}-\beta_{t-1})h(x^t,y^t) + \alpha_t\beta_{t}h(x^t,y^t) + \alpha_t\beta_{t}\langle Ax^t+By^t-c,Ax^*-Ax^t\rangle \nonumber \\
+        &+ \alpha_t\beta_{t}\langle Ax^{t+1} +By^t -c, By^* -By^t\rangle \nonumber \\
+        \overset{\mathop{(a)}}{\leq}& 2\alpha_t\beta_{t} h(x^t,y^t) + \alpha_t\beta_{t}\langle Ax^t+By^t-c,Ax^*-Ax^t\rangle+ \alpha_t\beta_{t}\langle Ax^{t+1} +By^t -c, By^* -By^t\rangle \nonumber \\
+        \overset{\mathop{(b)}}{=}& \alpha_t\beta_t\|Ax^t+By^t-(Ax^*+ By^*)\rVert^2 +\alpha_t\beta_{t} \langle Ax^{t} +By^t-(Ax^*+By^*),A(x^*-x^t) \rangle \nonumber\\
+        &+ \alpha_t\beta_{t}\langle Ax^{t+1} +By^t-(Ax^*+By^*), B(y^*-y^t) \rangle \nonumber \\
+        =& {\alpha_t\beta_{t}}\|A(x^t-x^*)\rVert^2 + {\alpha_t\beta_{t}}\|B(y^t-y^*)\rVert^2 +2\alpha_t\beta_{t}\langle Ax^t-Ax^*, By^t-By^*\rangle -\alpha_t\beta_{t}\|A(x^t-x^*)\rVert^2       \nonumber \\
+        & -\alpha_t\beta_{t}\|B(y^t-y^*)\rVert^2 +\alpha_t\beta_{t}\langle B(y^t-y^*), A(x^*-x^t) \rangle +\alpha_t\beta_{t}\langle A(x^{t+1}-x^*), B(y^*-y^t) \rangle  \nonumber \\
+        =&\alpha_t\beta_t \langle Ax^t -Ax^{t+1}, By^t-By^* \rangle \label{F_k-F_k+1_2}
+    \end{align} 
+    where $(a)$ holds due to lemma \ref{lemma_of_rk}, $(b)$ holds because $Ax^*+ By^* =c$. 
+    Combining  $\eqref{F_k-F_k+1}$ with $\eqref{F_k-F_k+1_2}$, we obtain that 
+    \begin{align}
+        &f(x^{t+1}) +g(y^{t+1}) +\beta_{t}h(x^{t+1},y^{t+1}) -f(x^*) -g(y^*) \nonumber \\
+        \leq& (1-\alpha_t)\left(f(x^t) +g(y^t)+\beta_{t-1}h(x^t,y^t) -f(x^*)-g(y^*)\right) + \frac{L_f+\lambda_{A} \beta_{t}}{2}\alpha_t^2D_x^2+ \frac{L_g +\lambda_{B} \beta_{t}}{2}\alpha_t^2D_y^2 \nonumber \\
+        &+\alpha_t\beta_{t}\langle Ax^t-Ax^{t+1}, By^t-By^*\rangle \label{f+g+rh}
+    \end{align}
+    Let $\Gamma_t =t(t+1) \left(f(x^t) +g(y^t)+\beta_{t-1}h(x^t,y^t) -f(x^*)-g(y^*)\right)$. 
+    Then, multiplying $(t+1)(t+2)$ to the both sides of \eqref{f+g+rh} and invoking the fact that 
+    $(t+1)(t+2)\alpha_t^2 = (t+1)(t+2)\frac{4}{(t+2)^2} \leq 4$, we have that 
+    \begin{align}
+        \Gamma_{t+1} \leq& \Gamma_t + \frac{L_f+\lambda_{A} \beta_{t}}{2}(t+1)(t+2)\alpha_t^2D_x^2+ \frac{L_g +\lambda_{B} \beta_{t}}{2}(t+1)(t+2)\alpha_t^2D_y^2 \nonumber \\
+        & +\alpha_t\beta_{t} (t+1)(t+2)\langle Ax^t -Ax^{t+1}, By^t-By^{*} \rangle  \nonumber \\
+        \leq& \Gamma_t + 2(L_f+\lambda_{A} \beta_{t})D_x^2+ 2(L_g +\lambda_{B} \beta_{t})D_y^2 +\alpha_t\beta_{t}(t+1)(t+2)\langle Ax^t- Ax^{t+1}, By^t-By^{*}\rangle \nonumber \\
+        =& \Gamma_t + (2\lambda_{A} D_x^2+ 2\lambda_{B} D_y^2)\beta_{t} +2L_fD_x^2+2L_gD_y^2 + \alpha_t\beta_{t}(t+1)(t+2)\langle Ax^t- Ax^{t+1}, By^t-By^{*}\rangle 
+    \end{align}
+    Summing both sides of the above inequality from $t=0$ to $k-1$, we have that
+    \begin{align}
+        &\Gamma_k \leq \sum_{t = 0}^{k-1}\left[ (2\lambda_{A} D_x^2+ 2\lambda_{B} D_y^2) \beta_{t} + (2L_fD_x^2+2L_gD_y^2 ) \right] +\sum_{t=0}^{k-1}\alpha_t \beta_{t}(t+1)(t+2)\langle Ax^t-Ax^{t+1}, By^t -By^*\rangle\nonumber \\
+        & \leq k\beta_{k-1}(2\lambda_{A} D_x^2+ 2\lambda_{B} D_y^2)+ k(2L_fD_x^2+2L_gD_y^2 ) +\sum_{t=0}^{k-1}\alpha_t \beta_{t}(t+1)(t+2)\langle Ax^t-Ax^{t+1}, By^t -By^*\rangle \label{iterate Gammak}
+    \end{align}
+    where the last inequality holds because $\beta_t \leq \beta_{k-1}$ for all $0 \leq t\leq k-1$.
+    By the lemma \ref{lemma_of_sum_Axk-Axk+1} and recalling that $\beta_t = \sqrt{t+1}$, we obtain that
+    \begin{align}
+        &\sum_{t=0}^{k-1}\alpha_t \beta_t(t+1)(t+2)\langle Ax^t-Ax^{t+1}, By^t -By^*\rangle \leq 
+        \left| \sum_{t=0}^{k-1} \alpha_t \beta_t(t+1)(t+2)\langle Ax^t-Ax^{t+1}, By^t -By^*\rangle \right| \nonumber \\
+        \leq&  2\beta_0\left|  \left\langle Ax^0, By^* \right\rangle \right|
+        + 2(k+1)^{\frac{3}{2}}\left|\left\langle  Ax^{k+1},By^* \right\rangle\right|
+        +2\beta_0\left|  \left\langle Ax^0, By^0 \right\rangle \right|
+        + 2(k+1)^{\frac{3}{2}}\left|\left\langle  Ax^{k+1},By^k \right\rangle\right| \nonumber \\
+        &+ 3 \sum\limits_{t=1}^{k-2} \sqrt{t+2} \left|\left\langle Ax^t, By^* \right\rangle\right|
+        + 3 \sum\limits_{t=1}^{k-2} \sqrt{t+2}\left|\left\langle Ax^t, By^{t+1} \right\rangle\right|
+        +4 \sum\limits_{t=1}^{k-2}  \sqrt{t+1} \left| \left\langle Ax^t, Bu^t-By^t \right\rangle \right| \nonumber
+    \end{align}
+    Recall that Assumption \ref{Assumption 2} holds and hence  
+    $D_2 = \max\limits_{x\in\mathrm{dom}f, y\in\mathrm{dom}g}\left| \langle Ax,By\rangle\right| < \infty$.
+    Therefore, we obtain that 
+    \begin{align}
+        &\sum_{t=0}^{k-1} \alpha_t \beta_{t}(t+1)(t+2)\langle Ax^t-Ax^{t+1}, By^t -By^*\rangle \nonumber \\
+        &\overset{\mathop{(a)}}{\leq} 4\beta_0D_2
+        + 4(k+1)^{\frac{3}{2}}D_2+ 6D_2 \sum\limits_{t=1}^{k-1} \sqrt{t+2} 
+        +8D_2 \sum\limits_{t=1}^{k-1}  \sqrt{t+1}  \nonumber \\
+        & \overset{\mathop{(b)}}{\leq} 4\beta_0D_2
+        + 4(k+1)^{\frac{3}{2}}D_2+ 6D_2 \int_{0}^{k+1} \sqrt{x} \hspace{1pt}dx 
+        +8D_2 \int_0^{k} \sqrt{x} \hspace{1pt} dx \nonumber \\
+        & = \left(4\beta_0+\frac{16}{3}k^{\frac{3}{2}}+ 8(k+1)^{\frac{3}{2}}\right) D_2 \leq \left(4\beta_0+\frac{40}{3}(k+1)^{\frac{3}{2}}\right)D_2
+        \label{sum_Axk_Axk+1}
+    \end{align}
+    where $(a)$ holds because of the definition of $D_2$ and $\left| \langle Ax^t, Bu^t - By^t \rangle \right|
+    \leq \left| \langle Ax^t, Bu^t \rangle \right| + \left|\langle Ax^t,By^t \rangle\right| \leq 2D_2$, 
+    $(b)$ holds because the function $x \mapsto x^{\frac{3}{2}}$ is increasing. 
+    Combining \eqref{iterate Gammak} with \eqref{sum_Axk_Axk+1}, we have that
+    \begin{align}
+        \Gamma_k \leq k^{\frac{3}{2}}c_1 + nc_2 + c_3 + c_4(k+1)^{\frac{3}{2}} \leq (c_1+c_4)(k+1)^{\frac{3}{2}} +nc_2 +c_3   
+    \end{align}
+    where $c_1= (2\lambda_{A} D_x^2+ 2\lambda_{B} D_y^2)$, $c_2=2L_fD_x^2+2L_gD_y^2$, $c_3=4\beta_0D_2$, $c_4 = \frac{40}{3}D_2$. 
+    
+    Recall that $\Gamma_k = k(k+1)\left(f(x^k)+ g(y^k)+ \beta_{k-1}h(x^k,y^k) -f(x^*)-g(y^*)\right)$, then we have that
+    \begin{align}
+        &f(x^k) +g(y^k)+\beta_{k-1}h(x^k,y^k) -f(x^*)-g(y^*) \leq \frac{(k+1)^{\frac{1}{2}}(c_1+c_4)}{k} + \frac{c_2}{k+1}+\frac{c_3}{k(k+1)}  \nonumber\\
+        & \leq \frac{k+1}{k}\frac{c_1+ c_4}{\sqrt{k+1}} +\frac{c_2}{k+1} +\frac{c_3}{k(k+1)} 
+        \leq \frac{2(c_1 + c_4)}{\sqrt{k+1}} +\frac{c_2}{k+1} +\frac{c_3}{k(k+1)} \label{Fk-F*_leq}
+    \end{align}
+    Besides, we also deduce from the above inequality that 
+    \begin{align}
+        f(x^k) +g(y^k) -f(x^*)-g(y^*) &\leq -\beta_{k-1}h(x^k,y^k)+
+        \frac{2(c_1+ c_4)}{\sqrt{k+1}} +\frac{c_2}{k+1}+ \frac{c_3}{k(k+1)} \nonumber \\
+        &\leq \frac{2c_1+2c_4}{\sqrt{k+1}} +\frac{c_2}{k+1}+ \frac{c_3}{k(k+1)} \label{Fk-F*_leq_one_size}
+    \end{align} 
+    where the last inequality holds because $\beta_{k-1}h(x^k,y^k) \geq 0$. 
+    Next, recall that the optimal condition in Lemma \ref{optimal}. Assume that there exist $\xi_1 \in \partial f(x^*)$ and $\xi_2 \in \partial g(y^*)$, such that 
+    \begin{align}
+        -\xi_1 -A^*\bar{\lambda} =0, \hspace{4pt}
+        -\xi_2-B^*\bar{\lambda} =0
+    \end{align}
+    Therefore, we have that
+    \begin{align}
+        0&= \langle \xi_1+A^*\bar{\lambda}, x^k -x^*\rangle+ \langle \xi_2+B^*\bar{\lambda}, y^k-y^*\rangle \nonumber \\
+        & =\langle \xi_1, x^k -x^* \rangle +\langle \xi_2, y^k -y^*\rangle +\langle \bar{\lambda}, A(x^k-x^*) \rangle +\langle \bar{\lambda}, B(y^k-y^*) \rangle \nonumber \\
+        &\overset{\mathop{(a)}}{\leq} f(x^k) -f(x^*) + g(y^k) -g(y^*) + \langle \bar{\lambda}, Ax^k+By^k-c\rangle
+    \end{align}
+    where $(a)$ holds because $f$ is convex 
+    and $Ax^* + By^* = c$. 
+    Therefore, we can get that
+    \begin{align}
+        -\langle \bar{\lambda}, Ax^k+By^k-c\rangle \leq f(x^k) -f(x^*) + g(y^k) -g(y^*) \label{F-F^*}
+    \end{align}
+   Besides, using Cauchy-Schwarz inequality, we obtain that
+    \begin{align}
+        \langle \bar{\lambda}, Ax^k+By^k-c\rangle \leq \|\bar{\lambda}\rVert \cdot\|Ax^k+By^k-c\rVert \label{Cauchy}
+    \end{align}
+    Summing $\eqref{F-F^*}$ and $\eqref{Cauchy}$, we have that 
+    \begin{align}
+        0&\leq f(x^k) -f(x^*) + g(y^k) -g(y^*) + \|\bar{\lambda}\rVert \cdot \|Ax^k+By^k-c\rVert \nonumber \\
+        & \leq -\frac{\sqrt{k}}{2}\|Ax^k+By^k-c\|^2 +  \frac{2c_1+2c_4}{\sqrt{k+1}} +\frac{c_2}{k+1}+ \frac{c_3}{k(k+1)} +\|\bar{\lambda}\rVert\|Ax^k+By^k-c\|
+    \end{align}
+    where the last inequality holds because of \eqref{Fk-F*_leq} and $\beta_{k-1} =\sqrt{k}$. 
+    Let $\theta_k = \|Ax^k+By^k-c\rVert$, then we obtain that 
+    \begin{align}
+        -\frac{\sqrt{k}}{2}\theta_k^2 +  \frac{2c_1+2c_4}{\sqrt{k+1}} +\frac{c_2}{k+1}+ \frac{c_3}{k(k+1)} 
+        +\|\bar{\lambda}\rVert \theta_k\geq 0
+    \end{align}
+    Therefore, solving this inequality, we can get that 
+    \begin{align}
+        \theta_k &\leq \frac{\|\bar{\lambda}\rVert+ \sqrt{\|\bar{\lambda}\rVert^2+2\sqrt{k}\left(\frac{2c_1+2c_4}{\sqrt{k+1}} +\frac{c_2}{k+1}+ \frac{c_3}{k(k+1)} \right)}}{\sqrt{k}} \nonumber \\
+        & \leq \frac{\|\bar{\lambda}\rVert}{\sqrt{k}}+\sqrt{\frac{\|\bar{\lambda}\rVert^2}{k}+\frac{4c_1+4c_4}{\sqrt{k(k+1)}} +\frac{2c_2}{(k+1)\sqrt{k}}+ \frac{2c_3}{k\sqrt{k}(k+1)}} \label{Axk-Byk-c}
+    \end{align}
+    Then, combining $\eqref{Axk-Byk-c}$ with $\eqref{F-F^*}$, we can get 
+    \begin{align}
+        &f(x^k) -f(x^*) + g(y^k) -g(y^*) \geq -\langle \bar{\lambda}, Ax^k+By^k-c \rangle \geq -\| \bar{\lambda} \rVert \cdot \|Ax^k+ By^k-c\rVert \nonumber \\
+        & \geq -\frac{\|\bar{\lambda}\rVert^2}{\sqrt{k}}-\|\bar{\lambda}\rVert\sqrt{\frac{\|\bar{\lambda}\rVert^2}{k}+\frac{4c_1+4c_4}{\sqrt{k(k+1)}} +\frac{2c_2}{(k+1)\sqrt{k}}+ \frac{2c_3}{k\sqrt{k}(k+1)}}
+        &\label{Fk-F*}
+    \end{align}
+    Let
+    \begin{align}
+        &\tau_k=\frac{c_1 + c_4}{\sqrt{k+1}} +\frac{c_2}{k+1}+ \frac{c_3}{k(k+1)} \nonumber \\
+        &\gamma_k = \frac{\|\bar{\lambda}\rVert}{\sqrt{k}}+\sqrt{\frac{\|\bar{\lambda}\rVert^2}{k}+
+        \frac{2c_1+ 2c_4}{\sqrt{k(k+1)}} +\frac{2c_2}{(k+1)\sqrt{k}}+ \frac{2c_3}{k\sqrt{k}(k+1)}} \nonumber 
+    \end{align}
+    Combining $\eqref{Fk-F*_leq_one_size}$ with $\eqref{Fk-F*_leq}$, we get
+    \begin{align}
+        |f(x^k) -f(x^*) + g(y^k) -g(y^*)| \leq \max\left\{ \tau_k,\|\bar{\lambda}\rVert \gamma_k \right\}
+    \end{align}
+    Therefore, we get the desired result.
+\end{proof}
+
+\subsection{KL property and convergence analysis of the whole sequence}
+Now, we have established the convergence rates of the function value $f(x^k)+ g(y^k) -f(x^*)- g(y^*)$ and the 
+feasible condition $\|Ax^k + By^k - c\rVert$. However, the sequence $\{x^k,y^k\}$ may not be 
+convergent. In order to further study the convergence of the sequence, we will use the KL property and
+exponent. 
+
+First, we assume that the functions $x \mapsto f(x) - \bar{\lambda}^TAx$ and $y\mapsto g(y) - \bar{\lambda}^TBy$ 
+satisfy the KL property with exponent $\alpha$. Then we have that the function $(x,y) \mapsto f(x)+ g(y) -\bar{\lambda}^T(Ax+By-c)$ 
+also has the KL exponent $\alpha$(see Theorem 3.3 in \cite{li2018calculus}). 
+
+Next, we introduce a useful lemma which indicate the relationship of KL exponent between the original function 
+and the corresponding Lagrangian function. 
+\begin{lemma} \label{lemma_of_Lagrangian_KL_exponent}
+    Let $f: \mathbb{R}^n \rightarrow \mathbb{R}$ be a proper, closed and convex function. $A\in \mathbb{R}^{m\times n}$ 
+    and $b\in \mathbb{R}^m$ satisfy $b \in A \mathrm{ri} \mathrm{dom} f$. Let $F(x) = f(x) + \delta_{\{b\}}(Ax)$.  
+    Let $\bar{\lambda}$ be a Lagrangian multiplier for the following problem
+    \begin{align}
+        \min\hspace{4pt} &f(x) \nonumber \\
+        s.t. \hspace{4pt} & Ax = b \nonumber 
+    \end{align}  
+    Suppose that $\emptyset \neq \Argmin F$ and $F_{\bar{\lambda}}(x) := f(x) -\bar{\lambda}^TAx$ satisfies the KL property with exponent $\alpha$ 
+    at an $\bar{x}\in \Argmin F$ and $\emptyset \neq \mathrm{ri} (\Argmin F_{\bar{\lambda}}) \cap \{x: Ax = b\}$, then 
+    $F$ also satisfies KL property at $\bar{x}$ with exponent $\alpha$. 
+\end{lemma}
+\begin{proof}
+    First, because $\bar{\lambda}$ is a Lagrangian multiplier, we have that
+    \begin{align}
+        F(\bar{x}) =\inf F(x) = f(\bar{x}) = \inf F_{\bar{\lambda}}(x) \leq F_{\bar{\lambda}}(\bar{x}) 
+        \leq F(\bar{x})   \nonumber
+    \end{align}
+    and 
+    \begin{align}
+        \bar{x} \in \Argmin F =\Argmin F_{\bar{\lambda}} \cap \{x: Ax=b\}   \nonumber
+    \end{align}
+    Second, since $F_{\bar{\lambda}}$ satisfies KL property with exponent $\alpha$ at $\bar{x}$, we have that there 
+    exists $\epsilon>0$,  $r_0>0$ and $\bar{c}>0$ such that for any $x$ satisfying $\|x - \bar{x}\rVert \leq \epsilon$ and 
+    $F_{\bar{\lambda}}(\bar{x})<F_{\bar{\lambda}}(x)< F_{\bar{\lambda}}(\bar{x})+ r_0$, it holds that 
+    \begin{align}
+        \mathrm{dist}(x,\Argmin F_{\bar{\lambda}}) \leq \bar{c}(F_{\bar{\lambda}}(x) - F_{\bar{\lambda}}(\bar{x}))^{1-\alpha} \nonumber
+    \end{align}
+    Finally, for any $x$ satisfying $\|x - \bar{x}\rVert \leq \epsilon$ and 
+    $F(\bar{x})<F(x)< F(\bar{x})+ r_0$,  by using these two results, we obtain that there exists a constant $\kappa$ such that 
+    \begin{align}
+        &\mathrm{dist} (x, \Argmin F)  = \mathrm{dist} \left(x,\Argmin F_{\bar{\lambda}} \cap \{x: Ax=b\}\right) 
+        \overset{\mathop{(a)}}{\leq} \kappa \mathrm{dist}(x, \Argmin F_{\bar{\lambda}}) \nonumber \\
+        & \leq \kappa \bar{c} \mathrm{dist}(F_{\bar{\lambda}}(x) - F_{\bar{\lambda}}(\bar{x}))^{1-\alpha} = 
+        \kappa \bar{c} \mathrm{dist}(F(x) - F(\bar{x}))^{1-\alpha}
+    \end{align}
+    where $(a)$ holds because of Corollary 3 of \cite{bauschke1999strong}.
+    Hence, the desired result follows. 
+\end{proof}
+
+Now, we can deduce the convergence rate of the sequences generated by Algorithm \ref{alg1}. 
+\begin{theorem}
+    Consider the problem \eqref{problem}. Suppose that $f(x) = f_0(x) + \delta_{\Xi}(x)$ and $g(x) = g_0(x) + \delta_{\Delta}(x)$ where 
+    $\Xi$, $\Delta$ are two compact and convex sets and $f_0$ and $g_0$ are two real-valued functions.     
+    Let $F(x,y)= f(x)+ g(y)+ \delta_{\mathcal{D}}(x,y)$, where $\mathcal{D} = \{(x,y)| Ax+By=c\}$. Suppose that the function $F_{\bar{\lambda}} = f(x) + g(y)- \bar{\lambda}^T(Ax+By-c)$ 
+    satisfies the KL property with exponent $\alpha$ at an $(\bar{x},\bar{y}) \in \Argmin F$ where $\bar{\lambda}$ is the Lagrangian multiplier of problem \eqref{problem}  
+    and $\emptyset \neq \Argmin F_{\bar{\lambda}}\cap \mathcal{D}$. It hods that there exist $c>0,\eta>0$ and
+    a neighborhood $U$ of $(\bar{x}, \bar{y})$ such that for every $(x,y)\in U$,  
+    \begin{align} 
+        \mathrm{dist}\left((x,y), \Argmin F\right) \leq c\left(f(x) + g(y)-f(x^*)-g(y^*)+\eta\|Ax+By-c\rVert\right)^{1-\alpha} \nonumber
+    \end{align} 
+    Furthermore, by Theorem \ref{theorem_convergence_Lipschitz}, we obtain that for any $(x^k,y^k)$ in U, it holds that 
+    \begin{align}
+        \mathrm{dist}\left((x^k,y^k), \Argmin F\right) \leq  c(\max \{\tau_k, \|\bar{\lambda}\rVert\gamma_k\}+\eta\gamma_k)^{1-\alpha}   \nonumber
+    \end{align}
+    where $\gamma_k$ and $\tau_k$ are defined in Theorem \ref{theorem_convergence_Lipschitz}. 
+    \end{theorem}
+
+    \begin{proof}
+        Let $\mathcal{C} = \Xi \times \Delta$. Due to Corollary 3 of \cite{bauschke1999strong}, there exist a $\kappa>0$ such that
+        \begin{align} 
+            \mathrm{dist}(x,\mathcal{C}\cap \mathcal{D}) \leq \kappa \mathrm{dist}(x,\mathcal{D}) 
+            \label{corollary_bauschke}
+        \end{align}
+    
+        Next, since $F_{\bar{\lambda}}$ satisfies the KL property with exponent $\alpha$ at $(\bar{x},\bar{y})$, the 
+        function $F$ also satisfies the KL property with exponent $\alpha$ thanks to Lemma \ref{lemma_of_Lagrangian_KL_exponent}. Thus, the following
+        result holds due to Lemma \ref{error_bound}.
+        \begin{align}
+            \mathrm{dist} ((x,y),\Argmin F) \leq \bar{c}(F(x,y) - F(\bar{x},\bar{y}))^{1-\alpha} \label{property_of_error_bound}
+        \end{align}
+        for some $\bar{c} >0$, $\epsilon>0$, $r_0>0$ and $(x,y)$ satisfying $\mathrm{dist}((x,y),(\bar{x},\bar{y})) \leq \epsilon\leq 1$ and 
+        $F(\bar{x},\bar{y})<F(x,y)<F(\bar{x},\bar{y}) + r_0$.
+        Besides, since $f_0(x)+ g_0(y)$ is convex and hence it is locally Lipschitz continous. 
+        Therefore, there exist $\epsilon_1$ and $L_0$ such that if $\|(x,y) - (\bar{x},\bar{y})\rVert \leq \epsilon_1$, 
+        $|f_0(x)+g_0(y) - f_0(\bar{x}) -g_0(\bar{y})| \leq L_0\|(x,y) - (\bar{x},\bar{y})\rVert $. 
+        Let $(\tilde{x},\tilde{y})= P_{\mathcal{C}\cap \mathcal{D}}((x,y))$ which denote the projection of $(x,y)$ onto $\mathcal{C}\cap \mathcal{D}$.
+        Let $\epsilon_2 = \min\{\epsilon, \epsilon_1\}$. Therefore, if $\mathrm{dist}((x,y),(\bar{x},\bar{y}))\leq \epsilon_2$, we have that 
+        \begin{align}
+            &\mathrm{dist}((x,y), \Argmin F) \leq \mathrm{dist}(P_{\mathcal{C}\cap\mathcal{D}}((x,y)), \Argmin F)
+            + \mathrm{dist}((x,y),\mathcal{C}\cap\mathcal{D}) \nonumber \\
+            & \overset{\mathop{(a)}}{\leq} \bar{c}(F(P_{\mathcal{C}\cap \mathcal{D}}(x,y)) - F(\bar{x},\bar{y}))^{1-\alpha} + \kappa\mathrm{dist}((x,y),\mathcal{D}) \nonumber \\
+            & =\bar{c}(f_0(\tilde{x})+g_0(\tilde{y})-f_0(\bar{x})-g_0(\bar{y}))^{1-\alpha} + \kappa\mathrm{dist}((x,y),\mathcal{D})  \nonumber \\
+            & \overset{\mathop{(b)}}{\leq} \bar{c}(f_0(x)+g_0(y)-f_0(\bar{x})-g_0(\bar{y})+L_0\mathrm{dist}((x,y), \mathcal{C}\cap\mathcal{D})) +\kappa \mathrm{dist}((x,y),\mathcal{D}) \nonumber \\
+            & \overset{\mathop{(c)}}{\leq} \bar{c}(f_0(x)+g_0(y)-f_0(\bar{x})-g_0(\bar{y})+L_0\mathrm{dist}((x,y), \mathcal{C}\cap\mathcal{D}))^{1-\alpha}
+            + \kappa \mathrm{dist}((x,y),\mathcal{C}\cap \mathcal{D})^{1-\alpha} \nonumber \\
+            &\leq c(f_0(x)+g_0(y)-f_0(\bar{x})-g_0(\bar{y})+ \kappa_1\mathrm{dist}((x,y),\mathcal{D}))^{1-\alpha}
+            \label{error_bound_f+g}
+        \end{align} 
+        where $(a)$ holds because \eqref{corollary_bauschke} and \eqref{property_of_error_bound}, $(b)$ holds because $f_0(x)+g_0(y)$ is locally Lipschitz and $\epsilon_2 = \min\{\epsilon, \epsilon_1\}$ 
+        $(c)$ holds because $\mathrm{dist}((x,y),\mathcal{C}\cap \mathcal{D}) \leq 1$ and the last inequality holds because 
+        $a^{1-\alpha}+ b^{1-\alpha} \leq 2^{\alpha} (a+b)^{1-\alpha}$, $c = 2^{\alpha}\bar{c}$, $\kappa_1 = L_0\kappa+\kappa^{\frac{1}{1-\alpha}}$. 
+        Let $a_i^T$, $b_i^T$ be the $i$-th row of the matrices $A$ and $B$ respectively and $c_i$ be the $i$-th element of 
+        $c$. Furthermore, we suppose that 
+        the vecotr $\tilde{a}_i^T = (a_i^T,b_i^T)$ has at leat one nonzero element.
+        Then, by letting $\mathcal{D}_i =\{(x,y)| a_i^Tx+b_i^Ty  =c_i\}$, we have that for some $\kappa_D>0$, 
+        it holds that
+        \begin{align}
+            \mathrm{dist}((x,y), \mathcal{D}) = \mathrm{dist}((x,y),\cap_i\mathcal{D}_i) 
+            \leq \kappa_D \max_i \mathrm{dist}((x,y),D_i)  \nonumber
+        \end{align}
+        where the last inequality holds because of Corollary 3 of \cite{bauschke1999strong}. Let $i_0$ be the 
+        index such that $\mathrm{dist}((x,y),D_{i_0}) = \max\limits_i \mathrm{dist}((x,y),D_i)$. Then, we have that
+        \begin{align}
+            &\mathrm{dist}((x,y),D_{i_0})=\frac{\|\tilde{a}_{i_0}(a_{i_0}^Tx+b_{i_0}^Ty-c_{i_0})\rVert}{a_{i_0}^Ta_{i_0}+b_{i_0}^Tb_i}
+            \leq \frac{1}{a_{i_0}^Ta_{i_0}+b_{i_0}^Tb_{i_0}} \|a_{i_0}\rVert \|a_{i_0}^Tx +b_{i_0}^Ty- c_{i_0}\rVert \nonumber \\
+            & \leq \frac{1}{a_{i_0}^Ta_{i_0}+b_{i_0}^Tb_{i_0}} \|a_{i_0}\rVert \|Ax+By-c\rVert
+        \end{align}
+        Let $\eta = \frac{\kappa_D\|a_{i_0}\rVert}{a_{i_0}^Ta_{i_0}+b_{i_0}^Tb_{i_0}}$. 
+        Combining this result with \eqref{error_bound_f+g}, we obtain that desired results hold. 
+    \end{proof}
+
+\section{Proposed Algorithm for H\"older Continuous Functions}
+\begin{assumption} \label{Assumption_holder}
+    Suppose that $f$ and $g$ are two convex functions and $f = f_1 + f_2$, $g = g_1+ g_2$.
+    Besides, $f_1$, $f_2$, $g_1$, $g_2$ are also convex. Suppose that $f_1$ and $f_2$ have H\"older continuous gradients with constant $M_f$, $M_g$
+    and exponents $\mu$, $\nu$, i.e.,
+    \begin{align}
+        f_1(x+y) &\leq f_1(x) + \left\langle \nabla f_1(x), y \right\rangle +\frac{M_f}{\mu +1}
+        \|y\rVert^{\mu +1} \nonumber \\
+        g_1(x+y) & \leq g_1(x) + \left\langle \nabla g_1(x), y \right\rangle +\frac{M_g}{\nu+1}
+        \|y\rVert^{\nu+1} \label{Holder_property}
+    \end{align}
+\end{assumption}
+
+The Algorithm \ref{alg2} we proposed for H\"older continuous functions is slight different from Algorithm
+\ref{alg1}. In proximal step, we use the stepsize $\frac{1}{M_f}$. However, we consider the proximal
+point $v^k$ as the descent direction in Algorithm \ref{alg2} and we get $x^{k+1}$ by the convex combination of $x^k$ and the 
+$v^k$.
+
+\begin{algorithm}
+	%\textsl{}\setstretch{1.8}
+	\caption{ Algorithm for H\"older Continuous Functions}
+	\label{alg2}
+	\begin{algorithmic}
+		\STATE \textbf{Step 0} Choose $x^0 \in \mathrm{dom}f, y^0 \in \mathrm{dom}g$, $r_0 >0$ and the sequences $\{\alpha_k\}$,
+        $\{r_k\}$ with $\lim\limits_{k\rightarrow \infty}\alpha_k = 0$, $\lim\limits_{k\rightarrow\infty}r_k=\infty$. Compute $\beta= \lambda_{\max}({A^*A})$.
+		\STATE \textbf{Step 1} For $k=0,1,\cdots$ compute
+            \begin{align}
+                &v^k \in \Argmin \langle \nabla f_1(x^k) + \beta_{k}A^*(Ax^k+By^k-c), x-x^k\rangle +\frac{M_f+\lambda_{A} \beta_{k}}{2}\|x-x^k\rVert^2 +f_2(x) \nonumber \\
+                &x^{k+1} = x^k+\alpha_k(v^k - x^k)  \\
+                & u^k \in \Argmin \langle\nabla g_1(y^k) + \beta_{k}B^*(Ax^{k+1} +By^k-c),y\rangle +g_2(y) \nonumber \\
+                & y^{k+1} = y^{k} +\alpha_k(u^k-y^k)  \label{get_y_k_holder}
+            \end{align}
+	\end{algorithmic}  
+\end{algorithm}
+
+\begin{theorem} \label{Theorem_of_convergence_Holder}
+    Consider problem \eqref{problem} and suppose that Assumption \ref{Assumption 1}, \ref{Assumption 2}, \ref{Assumption_holder} and the 
+    CQ \eqref{CQ} hold. Recall that $\mu$ and $\nu$ are H\"older exponents of $f_1$ and $f_2$ and we define 
+    $\kappa = \min\{\mu,\nu\}$. 
+    Suppose that $x^*$, $y^*$ and $\bar{\lambda}$ are defined in lemma \ref{optimal}. 
+    We choose that $\beta_n = (n+1)^{\delta}$ for some $\delta\in (0,1]$ and the stepsize $\alpha_n = \frac{2}{n+2}$.  
+    Let the sequences $\{x^n\}$, $\{y^n\}$, $\{v^n\}$ and $\{u^n\}$ be generated by 
+    Algorithm \ref{alg2}.  
+    Then, for all $n\in \mathbb{N}$, we have the following results hold:
+    
+    $\mathrm{(\romannumeral1)}$ If $\kappa \geq \frac{1}{2}$, we can choose $\delta =\frac{1}{2}$
+    and then we have that 
+    \begin{align}
+        \left|f(x^{n}) + g(y^{n})  - f(x^*) -g(y^*) \right| \leq \frac{c_1+ c_2+ m_0}{\sqrt{n+1}} 
+        +\frac{\|\bar{\lambda} \rVert c_0}{\sqrt{n}} \nonumber 
+    \end{align}
+    and 
+    \begin{align}
+        \| Ax^n + By^n -c\rVert \leq \frac{c_0}{\sqrt{n}}  \nonumber
+    \end{align}
+
+    $\mathrm{(\romannumeral2)}$ If $\kappa < \frac{1}{2}$, we can choose that $\delta \in[\kappa, 1-\kappa]$.
+    And then we obtain 
+    \begin{align}
+        \left| f(x^n) + g(y^n) -f(x^*) -g(y^*)\right| \leq \frac{c_1+ c_2 +m_0+ \|\bar{\lambda}\rVert c_0}{(n+1)^{\kappa}} \nonumber
+    \end{align} 
+    and
+    \begin{align}
+        \|Ax^n + By^n - c\rVert \leq \frac{c_0}{\sqrt{n^{\delta}(n+2)^{\kappa}}} \nonumber
+    \end{align}
+    where
+    \begin{align}
+        &c_1= (4D_2+2\lambda_{A} D_1D_x+ 2\lambda_{B} D_y^2),\hspace{4pt} c_2=2M_fD_1D_x+2M_gD_y^2,\hspace{4pt}c_0 = \|\bar{\lambda}\rVert +\sqrt{\|\bar{\lambda}\rVert^2+2c_1+2c_2+m_0} \nonumber \\
+        &m_0 = 12m_1 + 12m_2,\hspace{4pt} m_1 =\frac{2^{\mu+1}M_fD_x^{\mu+1}}{1-\mu^2},\hspace{4pt} m_2= \frac{2^{\nu+1}M_gD_y^{\nu+1}}{1-\nu^2} \nonumber
+    \end{align} 
+    Here, $D_x$ and $D_y$ are the diameters of $\mathrm{dom}f$ and $\mathrm{dom}g$, 
+    $D_1 = \max\limits_{x^1,x^2\in\mathrm{dom}f}\{\|x^*-x^1\rVert+\|x^*-x^2\rVert\}$, 
+    $D_1 = \max\limits_{x\in\mathrm{dom}f,y\in\mathrm{dom}g}\left| \langle Ax,By \rangle \right|$ and $M_f, M_g$ 
+    are the H\"older constants of $f_1$ and $g_1$.  
+\end{theorem}
+\begin{proof}
+
+    Recall that $f_1$ has H\"older continuous gradient with constants $M_f$, $\mu$ and $\lambda_{A} = \lambda_{\max}(A^*A)$. We have that
+    \begin{align}
+        &f_1(x^{k+1})+ \beta_{k}h(x^{k+1},y^k) +f_2(x^{k+1})  \nonumber \\
+        \overset{\mathop{(a)}}{\leq}& f_1(x^k) +\beta_{k}h(x^k,y^k) +\langle \nabla f_1(x^k)+ \beta_{k}A^*(Ax^k+By^k-c), x^{k+1} -x^k\rangle + \frac{M_f}{\mu+1}\|x^{k+1} - x^{k}\rVert^{\mu+1} \nonumber \\
+        &+\frac{\lambda_{A} \beta_k}{2}\|x^{k+1}-x^k\rVert^2 +f_2(x^{k+1})  \nonumber \\
+        \overset{\mathop{(b)}}{=}& f_1(x^k) +\beta_kh(x^k,y^k) +\alpha_k\langle \nabla f_1(x^k)+\beta_{k}A^*(Ax^k+By^k-c), v^k -x^k\rangle +\frac{M_f}{2}\alpha_k\|v^k-x^k\rVert^2    \nonumber \\
+        &-\frac{M_f}{2}\alpha_k\|v^k-x^k\rVert^2+\frac{M_f}{\mu+1}\alpha_k^{\mu +1}\|v^k - x^{k}\rVert^{\mu+1}+\frac{\lambda_{A} \beta_k} {2}\alpha_k^2 \|v^k-x^k\rVert^2+f_2(x^{k+1})  \nonumber \\
+        \overset{(c)}{\leq} &f_1(x^k) +\beta_kh(x^k,y^k) +\alpha_k\langle \nabla f_1(x^k)+\beta_{k}A^*(Ax^k+By^k-c), v^k -x^k\rangle +\frac{M_f}{2}\alpha_k\|v^k-x^k\rVert^2    \nonumber \\
+        &-\frac{M_f}{2}\alpha_k\|v^k-x^k\rVert^2+\frac{M_f}{\mu+1}\alpha_k^{\mu +1}\|v^k - x^{k}\rVert^{\mu+1}+\frac{\lambda_{A} \beta_k} {2}\alpha_k \|v^k-x^k\rVert^2+f_2(x^{k+1})  \nonumber \\
+        \leq& f_1(x^k) +\beta_kh(x^k,y^k) +\alpha_k\langle \nabla f_1(x^k)+ \beta_{k}A^*(Ax^k+By^k-c), v^k -x^k\rangle +\frac{M_f +\lambda_{A} \beta_k}{2}\alpha_k\|v^k-x^k\rVert^2    \nonumber \\
+        &-\frac{M_f}{2}\alpha_k\|v^k-x^k\rVert^2+\frac{M_f}{\mu+1}\alpha_k^{\mu +1}D_x^{\mu+1}+f_2(x^{k+1})  \label{f_1_poposition_1_holder}
+    \end{align}
+    where $(a)$ holds because of \eqref{Holder_property} and 
+    $r_kh(\cdot,y^k)$ having Lipschitz continuous gradient with constant $\beta_k\lambda_{A}$, 
+    $(b)$ holds because of \eqref{get_y_k_holder} and $(c)$ holds because $\alpha_k^2 \leq \alpha_k$ 
+    for every $\alpha_k \in [0,1]$. Besides, the last inequality holds since $\|v^k-x^k\rVert \leq D_x$. 
+    By the fact that $f_2$ is convex and the property of the proximal gradient method,  we obtain that
+    \begin{align}
+        &\alpha_k\langle \nabla f_1(x^k)+\beta_kA^*(Ax^k+By^k-c), v^k -x^k\rangle + \frac{M_f+\lambda_{A} \beta_{k}}{2}\alpha_k\|v^k - x^{k}\rVert^{2} + f_2(x^{k+1}) \nonumber \\
+        \leq& \alpha_k (f_1(x^*)-f_1(x^k))+ \alpha_k\beta_k\langle  A^*(Ax^k+By^k-c), x^* -x^k\rangle + \frac{M_f+\lambda_{A} \beta_{k}}{2}\alpha_k\|x^* - x^{k}\rVert^2 + \alpha_k f_2(x^*)  \nonumber \\
+        & +(1-\alpha_k)f_2(x^k)-\frac{M_f+\lambda_{A} \beta_{k}}{2}\alpha_k\|x^* - x^{k+1}\rVert^2\label{f_1_poposition_2_holder}
+    \end{align}
+    Then, combining \eqref{f_1_poposition_1_holder} with \eqref{f_1_poposition_2_holder}, we get the following result.
+    \begin{align}
+         &f(x^{k+1})+ \beta_{k}h(x^{k+1},y^k) -f(x^*) \nonumber \\
+         \leq& (1-\alpha_k)(f(x^k) -f(x^*)) +\beta_{k}h(x^k,y^k)+\alpha_k\langle Ax^k+By^k-c,Ax^*-Ax^k\rangle +\frac{M_f}{\mu+1}\alpha_k^{\mu +1}D_x^{\mu+1} \nonumber \\
+         & -\frac{L_f+\lambda_{A} \beta_{k}}{2}\alpha_k\left(\|x^* - x^{k}\rVert^2 -  \|x^* - x^{k+1}\rVert^2\right) -\frac{M_f}{2}\alpha_k\|v^k-x^k\rVert^2 \nonumber \\
+         =& (1-\alpha_k)(f(x^k) -f(x^*)) +\beta_{k}h(x^k,y^k)+\alpha_k\langle Ax^k+By^k-c,Ax^*-Ax^k\rangle +\frac{M_f}{\mu+1}\alpha_k^{\mu +1}D_x^{\mu+1} \nonumber \\
+         & -\frac{L_f+\lambda_{A} \beta_{k}}{2}\alpha_k\left(\|x^* - x^{k}\rVert -  \|x^* - x^{k+1}\rVert\right)\left(\|x^* - x^{k}\rVert + \|x^* - x^{k+1}\rVert\right) -\frac{M_f}{2}\alpha_k\|v^k-x^k\rVert^2 \nonumber \\
+         \overset{\mathop{(a)}}{\leq}& (1-\alpha_k)(f(x^k) -f(x^*)) +\beta_{k}h(x^k,y^k)+\alpha_k\langle Ax^k+By^k-c,Ax^*-Ax^k\rangle +\frac{M_f}{\mu+1}\alpha_k^{\mu +1}D_x^{\mu+1} \nonumber \\
+         & +\frac{L_f+\lambda_{A} \beta_{k}}{2}\alpha_k\|x^*  - x^{k+1}\rVert\left(\|x^* - x^{k}\rVert + \|x^* - x^{k+1}\rVert\right) -\frac{M_f}{2}\alpha_k\|v^k-x^k\rVert^2 \nonumber \\
+         \overset{\mathop{(b)}}{\leq}& (1-\alpha_k)(f(x^k) -f(x^*)) +\beta_{k}h(x^k,y^k)+\alpha_k\langle Ax^k+By^k-c,Ax^*-Ax^k\rangle  \nonumber \\
+         &+\frac{M_f+\lambda_{A} \beta_k}{2}\alpha_k^2D_1D_x + \frac{M_f}{\mu+1}\alpha_k^{\mu +1}D_x^{\mu+1}
+         \label{f_k+1_holder}
+    \end{align}
+    where $(a)$ holds because $-\left(\|x^* - x^k\rVert - \|x^* - x^{k+1}\rVert\right) \leq \|x^k-x^{k+1}\rVert$ 
+    and $(b)$ holds since  $\|v^k -x^k\rVert \leq D_x$ and $ \|x^* - x^k\rVert +\|x^* -x^{k+1}\rVert \leq D_1$ 
+    where $D_1 = \max\limits_{x_1,x_2\in\mathrm{dom}f}\|x^* - x^k\rVert+ \|x^*-x^{k+1}\rVert$ which is 
+    defined in our statement of theorem \ref{Theorem_of_convergence_Holder}. 
+
+    Next, by the same methods in \eqref{g_k+1} and \eqref{F_k-F_k+1}, we have that 
+    \begin{align}
+         &g(y^{k+1}) +\beta_{k}h(x^{k+1},y^{k+1}) -g(y^*)  \nonumber \\
+        \leq& (1-\alpha_k)(g(y^k)-g(y^*))+\beta_{k}h(x^{k+1},y^k)+ \alpha_k\beta_{k}\langle Ax^{k+1} +By^k -c, By^* -By^k\rangle  \nonumber \\
+        &+\frac{M_g+\lambda_{B} \beta_{k}}{2} \alpha_k^2 D_y^2 +\frac{M_g}{\nu+1}\alpha_k^{\nu +1}D_y^{\nu+1} \label{g_k+1_holder}
+    \end{align}
+    and
+    \begin{align}
+        &f(x^{k+1}) +g(y^{k+1}) +\beta_{k}h(x^{k+1},y^{k+1}) -f(x^*) -g(y^*) \nonumber \\
+        \leq& (1-\alpha_k)\left(f(x^k) +g(y^k)+\beta_{k-1}h(x^k,y^k) -f(x^*)-g(y^*)\right)+\alpha_k\beta_{k}\langle Ax^k+By^k-c,Ax^*-Ax^k\rangle \nonumber \\
+        &+ \alpha_k\beta_{k}\langle Ax^{k+1} +By^k -c, By^* -By^k\rangle +\frac{M_f+\lambda_{A} \beta_{k}}{2}\alpha_k^2D_1D_x+ \frac{M_g +\lambda_{B} \beta_{k}}{2}\alpha_k^2D_y^2
+        \nonumber \\
+        & +(1-\alpha_k)(\beta_{k}-\beta_{k-1})h(x^k,y^k) + \alpha_k\beta_{k} h(x^k,y^k) +\frac{M_f}{\mu+1}\alpha_k^{\mu +1}D_x^{\mu+1} +\frac{M_g}{\nu+1}\alpha_k^{\nu +1}D_y^{\nu+1} \label{F_k-F_k+1_holder}
+    \end{align}
+    Similarly, also by the lemma \ref{lemma_of_rk} and recalling the definition of $D_2$ which is defined in theorem \ref{theorem_convergence_Lipschitz}, 
+    we obtain that 
+    \begin{align}
+        &(1-\alpha_k)(\beta_{k}-\beta_{k-1})h(x^k,y^k) + \alpha_k \beta_{k}h(x^k,y^k) + \alpha_k\beta_{k}\langle Ax^k+By^k-c,Ax^*-Ax^k\rangle \nonumber\\
+        &+ \alpha_k\beta_{k}\langle Ax^{k+1} +By^k -c, By^* -By^k\rangle \nonumber \\
+        \overset{\mathop{(a)}}{\leq}& \alpha_k\beta_{k} \langle Ax^k -Ax^{k+1}, By^k-By^*\rangle \nonumber  
+        =\alpha_k^2\beta_k \langle Av^k -Ax^k,By^k-By^* \rangle  \nonumber \\
+        =& \alpha_k\beta_k \left(\langle Av^k,By^k \rangle-\langle Av^k, By^*\rangle - 
+        \langle Ax^{k},By^k \rangle+ \langle Ax^{k}, By^* \rangle\right)  \nonumber \\
+        \leq& \alpha_k^2\beta_k \left(\left|\langle Av^k,By^k \rangle \right|+\left|\langle Av^k, By^*\rangle\right| + 
+        \left|\langle Ax^{k},By^k \rangle\right|+ \left|\langle Ax^{k}, By^* \rangle\right|\right) 
+        \leq 4\alpha_k^2\beta_k D_2 \label{F_k-F_k+1_2_holder}
+    \end{align} 
+    where $(a)$ holds because of \eqref{F_k-F_k+1_2}.
+    Combining $\eqref{F_k-F_k+1_holder}$ with $\eqref{F_k-F_k+1_2_holder}$, we have that
+    \begin{align}
+        &f(x^{k+1}) +g(y^{k+1})+ \beta_{k}h(x^{k+1},y^{k+1}) -f(x^*) -g(y^*) \nonumber \\
+        \leq& (1-\alpha_k)\left(f(x^k) +g(y^k)+\beta_{k-1}h(x^k,y^k) -f(x^*)-g(y^*)\right)+ \alpha_k^2\beta_{k}D_2   \nonumber \\
+        &+ \frac{M_f+\lambda_{A} \beta_{k}}{2}\alpha_k^2D_1D_x +\frac{M_g +\lambda_{B} \beta_{k}}{2}\alpha_k^2D_y^2+\frac{M_f}{\mu+1}\alpha_k^{\mu +1}D_x^{\mu+1} +\frac{M_g}{\nu+1}\alpha_k^{\nu +1}D_y^{\nu+1}
+    \end{align}
+    Let $\Gamma_k =k(k+1) \left(f(x^k) +g(y^k)+\beta_{k-1}h(x^k,y^k) -f(x^*)-g(y^*)\right)$ and multiply $(k+1)(k+2)$ to both sides of the above inequality.
+    Then, we have that 
+    \begin{align}
+        &\Gamma_{k+1} \nonumber \\ 
+        \leq& \Gamma_k +4(k+1)(k+2)\alpha_k^2\beta_kD_2 + \frac{M_f+\lambda_{A} \beta_k}{2}(k+1)(k+2)\alpha_k^2D_1D_x+ \frac{M_g +\lambda_{B} \beta_k}{2}(k+1)(k+2)\alpha_k^2D_y^2 \nonumber \\
+        &+\frac{M_f}{\mu+1}\alpha_k^{\mu +1}(k+1)(k+2)D_x^{\mu+1} +\frac{M_g}{\nu+1}\alpha_k^{\nu +1}(k+1)(k+2)D_y^{\nu+1} \nonumber \\
+        \overset{\mathop(a)}{\leq} &\Gamma_k +16D_2 \beta_k + 2(M_f+\lambda_{A} \beta_k)D_1D_x+ 2(M_g +\lambda_{B} \beta_k)D_y^2 \nonumber\\ 
+        &+\frac{2^{\mu+1}}{\mu+1}M_f(k+2)^{1-\mu}D_x^{\mu+1}+\frac{2^{\nu+1}}{\nu+1}M_g(k+2)^{1-\nu}D_y^{\nu+1}\nonumber \\
+         \leq& \Gamma_k + (16D_2+2\beta D_1D_x+ 2\rho D_y^2)\beta_k +\frac{2^{\mu+1}}{\mu+1}M_f(k+2)^{1-\mu}D_x^{\mu+1} \nonumber\\
+        &+\frac{2^{\nu+1}}{\nu+1}M_g(k+2)^{1-\nu}D_y^{\nu+1}+2M_fD_1D_x+2M_gD_y^2 
+    \end{align}
+    where $(a)$ holds because $(k+1)(k+2) \alpha_k^2 =(k+1)(k+2) \frac{4}{(k+2)^2} \leq 4$ and $(k+1)(k+2) \alpha_k^{\mu+1} \leq2^{\mu+1}(k+2)^{1-\mu}$, we obtain that 
+    \begin{align}
+        \Gamma_{k+1} \leq& \Gamma_k +16D_2 \beta_k + 2(M_f+\lambda_{A} \beta_k)D_1D_x+ 2(M_g +\lambda_{B} \beta_k)D_y^2 \nonumber\\ 
+        &+\frac{2^{\mu+1}}{\mu+1}M_f(k+2)^{1-\mu}D_x^{\mu+1}+\frac{2^{\nu+1}}{\nu+1}M_g(k+2)^{1-\nu}D_y^{\nu+1}\nonumber \\
+         \leq& \Gamma_k + (16D_2+2\lambda_{A} D_1D_x+ 2\lambda_{B} D_y^2)\beta_k +\frac{2^{\mu+1}}{\mu+1}M_f(k+2)^{1-\mu}D_x^{\mu+1} \nonumber\\
+        &+\frac{2^{\nu+1}}{\nu+1}M_g(k+2)^{1-\nu}D_y^{\nu+1}+2M_fD_1D_x+2M_gD_y^2 
+    \end{align}
+    Summing the both sides of the above inequality, we obtain that the following statement holds .
+    \begin{align}
+        \Gamma_n &\leq \sum_{k = 0}^{n-1} \left[ (16D_2+2\lambda_{A} D_1D_x+ 2\lambda_{B} D_y^2)\beta_k +\frac{2^{\mu+1}}{1+\mu}M_fD_x^{\mu+1}(k+2)^{1-\mu }\right. \nonumber \\
+        &\left. +\frac{2^{\nu+1}}{1+\nu}D_y^{\nu+1}M_g(k+2)^{1-\nu}+ (2M_fD_1D_x+2M_gD_y^2 ) \right]  \nonumber \\
+         \overset{\mathop{(a)}}{\leq}& \beta_{n}n(16D_2+2\lambda_{A} D_1D_x+ 2\lambda_{B} D_y^2) +(2M_fD_1D_x+2M_gD_y^2 )n  \nonumber \\
+        &+\frac{2^{\mu+1}}{1+\mu}M_fD_x^{\mu+1}\sum_{k=0}^{n-1}(k+2)^{1-\mu} + \frac{2^{\nu+1}}{1+\nu}M_fD_x^{\nu+1}\sum_{k=0}^{n-1}(k+2)^{1-\nu} \nonumber \\
+         \overset{\mathop{(b)}}{\leq}& \beta_{n}n(16D_2+2\lambda_{A} D_1D_x+ 2\lambda_{B} D_y^2)+ \frac{2^{\mu+1}M_fD_x^{\mu+1}}{1-\mu^2}(n+2)^{2-\mu} \nonumber \\
+        &+ \frac{2^{\nu+1}M_gD_y^{\nu+1}}{1-\nu^2}(n+2)^{2-\nu}+(2M_fD_1D_x+2M_gD_y^2 )n 
+    \end{align}
+    where $(a)$ holds because $\beta_{k} \leq \beta_{n-1}$ for every $ 0 \leq k \leq n-1$, $(b)$ holds because the function
+    $x \mapsto x^{1-\delta}$ is increasing when $\delta \in (0,1]$. 
+    Therefore, we have that
+    \begin{align}
+        &f(x^n) +g(y^n)+\beta_{n}h(x^n,y^n) -f(x^*)-g(y^*) \leq  \frac{\beta_{n}c_1}{n+1} +\frac{m_1(n+2)^{2-\mu}}{n(n+1)}+\frac{m_2(n+2)^{2-\nu}}{n(n+1)}+ \frac{c_2}{n+1} \nonumber \\
+        &= \frac{\beta_{n}c_1}{n+1} +\frac{n+2}{n+1}\cdot\frac{n+2}{n}\cdot\frac{m_1}{(n+2)^{\mu}}+\frac{n+2}{n+1}\cdot\frac{n+2}{n}\cdot\frac{m_2}{(n+2)^{\nu}}+ \frac{c_2}{n+1} \nonumber\\
+        &\leq  \frac{\beta_{n}c_1}{n+1} +\frac{6m_1}{(n+2)^{\mu}}+\frac{6m_2}{(n+2)^{\nu}}+ \frac{c_2}{n+1}  
+        \label{Fk-F*_leq_holder}
+    \end{align}
+    where $c_1= (16D_2+2\lambda_{A} D_1D_x+ 2\lambda_{B} D_y^2)$, $c_2=2M_fD_1D_x+2M_gD_y^2$, $m_1 =\frac{2^{\mu+1}M_fD_x^{\mu+1}}{1-\mu^2} $ and $m_2= \frac{2^{\nu+1}M_gD_y^{\nu+1}}{1-\nu^2}$. 
+    By the same method in \eqref{Axk-Byk-c}, we obtain that
+    \begin{align}
+        \|Ax^n+By^n-c\rVert &\leq
+        \frac{\|\bar{\lambda}\rVert + \sqrt{\|\bar{\lambda}\rVert^2+2\beta_n\left(\frac{c_1\beta_n+c_2}{n+1}+\frac{6m_1}{(n+2)^{\mu}}+\frac{6m_2}{(n+2)^{\nu}}\right)}}{\beta_k}  \nonumber \\
+        & \leq \frac{\|\bar{\lambda}\rVert}{\beta_n}+\sqrt{\frac{\|\bar{\lambda}\rVert^2}{\beta_n^2}+\frac{2c_1}{n+1}+\frac{2c_2}{\beta_n(n+1)}+\frac{12m_1}{\beta_n(n+2)^{\mu}}+\frac{12m_2}{\beta_n(n+2)^{\nu}}} \nonumber 
+    \end{align}
+    Recall that $\kappa = \min\{\mu,\nu\}$ and $\tau_n = \min\left\{{\beta_n}, \sqrt{n+1},\sqrt{\beta_n(n+2)^{\kappa}}\right\}$. Then, we have that
+    \begin{align}
+         \|Ax^n+By^n-c\rVert & \leq \frac{c_0}{\tau_n} \label{Axk-Byk-c_holder}
+    \end{align}
+    where $c_0 = \|\bar{\lambda}\rVert +\sqrt{\|\bar{\lambda}\rVert^2+2c_1+2c_2+12m_1+12m_2}$. 
+    Then, similar to \eqref{Fk-F*}, we can  get that 
+    \begin{align}
+        f(x^n) -f(x^*) + g(y^n) -g(y^*) \geq -\frac{\|\bar{\lambda}\rVert c_0}{\tau_{n}} \label{Fk-F*_holder}
+    \end{align}
+   and
+    \begin{align}
+        |f(x^n) -f(x^*) + g(y^n) -g(y^*)| \leq \max\left\{\frac{\beta_nc_1}{n+1} + \frac{c_2}{n+1}  +\frac{m_0}{(n+2)^{\kappa}}, \frac{\|\bar{\lambda}\rVert c_0}{\tau_n}\right\}
+    \end{align}
+    where $m_0 = 12m_1+12m_2$. Then we consider two cases with respect to $\varepsilon$.
+    If $\kappa \geq \frac{1}{2}$, recall that $\beta_n = n^{\delta}$, $\delta\in (0,1]$. To get 
+    the fastest convergence rate, we choose 
+    $\delta = \frac{1}{2}$, then we have that
+    \begin{align}
+        \tau_n = \min\left\{ n^{\delta}, \sqrt{n+1}, \sqrt{n^{\delta}(n+2)^{\kappa}} \right\} =\sqrt{n} \nonumber
+    \end{align}
+    and
+    \begin{align}
+        \frac{\beta_nc_1}{n+1} + \frac{c_2}{n+1}  +\frac{m_0}{(n+2)^{\kappa}} \leq \frac{c_1+c_2+m_0}{\sqrt{n+1}} \nonumber   
+    \end{align}
+    for large $k$.
+    Therefore, we have that
+    \begin{align}
+        \left|f(x^n) -f(x^*) + g(y^n) -g(y^*)\right| \leq \max\left\{\frac{c_1+c_2+m_0}{\sqrt{n+1}}, \frac{\|\bar{\lambda}\rVert c_0}{\sqrt{n}} \right\} 
+        \leq \frac{c_1+c_2+m_0}{\sqrt{n+1}} + \frac{\|\bar{\lambda}\rVert c_0}{\sqrt{n}}
+    \end{align}
+    and
+    \begin{align}
+        \|Ax^n +By^n - c\rVert \leq \frac{c_0}{\sqrt{n}}
+    \end{align}
+    
+    If $\kappa < \frac{1}{2}$, we can choose $\delta \in [\kappa, 1-\kappa] $. Then we have that
+    \begin{align}
+        \frac{\beta_nc_1}{n+1} + \frac{c_2}{n+1}  +\frac{m_0}{(n+2)^{\kappa}} \leq \frac{c_1+c_2+m_0}{(n+1)^{\kappa}}
+    \end{align}
+    and
+    \begin{align}
+        \tau_n = \min\left\{ n^{\delta}, \sqrt{n+1}, \sqrt{n^{\delta}(n+2)^{\kappa}} \right\} 
+        =\sqrt{n^{\delta}(n+2)^{\kappa}} \nonumber
+    \end{align}
+    Therefore, we have that
+    \begin{align}
+        \left|f(x^n) -f(x^*) + g(y^n) -g(y^*)\right| \leq \max\left\{\frac{c_1+c_2+m_0}{(n+1)^{\kappa}}, 
+        \frac{\|\bar{\lambda}\rVert c_0}{\sqrt{n^{\delta}(n+2)^{\kappa}}} \right\} \leq 
+        \frac{c_1+c_2+m_0+\|\bar{\lambda}\rVert c_0}{(n+1)^{\kappa}}
+    \end{align}
+    and
+    \begin{align}
+        \|Ax^n +By^n - c\rVert \leq \frac{c_0}{\sqrt{n^{\delta}(n+2)^{\kappa}}}
+    \end{align}
+\end{proof}
+
+
+
+
+\section{Examples}
+\subsection{Hankel Matrix Rank Minimization}
+
+Consider the following problem
+\begin{align} \label{Hankel Matrix}
+    \min\limits \hspace{4pt}&\frac{1}{2}\|\mathcal{A}(y)-b\rVert^2 \nonumber\\
+    s.t. \hspace{4pt} &\| \mathcal{H}(y) \rVert_* \leq \sigma   
+\end{align}
+where $\mathcal{A}: \mathbb{R}^{m\times n(k+j-1)} \rightarrow \mathbb{R}^p$ is a linear operator,   
+$y =\left(y_0, y_1,...,y_{j+k-2}\right)$ is an $m \times n(k+j-1)$ matrix and each
+$x_i$ is an $m\times n$ matrix. In this paper, $\mathcal{A}(y)$ is the operator that misses some elements
+$y_i$ in $y$ and then stretches it into a vector.  Therefore, we can obtain that
+\begin{align}
+    \lambda_{\max}(\mathcal{A}^*\mathcal{A}) \leq 1 \nonumber
+\end{align}
+Besides, $\mathcal{H}(y) := H_{m, n, j, k}(y)U$, where
+\begin{align}
+    H_{m,n,j,k}(y) = \left(
+        \begin{array}{cccc}
+            y_0 & y_1 & \cdots &y_{k-1} \\
+            y_1 & y_2 & \cdots &y_{k} \\
+            \vdots & \vdots &  &\vdots \\
+            y_{j-1} &y_{j}  &  &y_{j+k-2} 
+        \end{array} \nonumber
+    \right) \in \mathbb{R}^{mj\times nk}
+\end{align}
+and
+$U$ is a matrix whose columns are orthogonal. Therefore, We can also obtain that 
+\begin{align}
+    \| \mathcal{H}^*\mathcal{H}(y) \rVert \leq \mathbf{r}\| y\rVert \nonumber
+\end{align}
+where $\mathbf{r} = \min\{ j,k\}$.
+
+Because $\|\mathcal{H}(x)\rVert_* \leq \sigma$, we have that
+\begin{align}
+    tr\left(\mathcal{H}(x)^T\mathcal{H}(x)\right) \leq \sigma^2 \nonumber
+\end{align}
+Notice that 
+\begin{align}
+    &tr\left(\mathcal{H}(x)^T\mathcal{H}(x)\right)  = 
+    tr\left(H_{m,n,j,k}^T H_{m,n,j,k}\right) =\sum\limits_{i =0}^{k-1}\sum\limits_{l=i}^{l+j-1} 
+    tr\left(x_l^Tx_l\right) \geq \sum\limits_{i=0}^{k+j-2} tr\left(x_i^Tx_i\right)
+    = tr\left(x^Tx\right) \nonumber
+\end{align}
+Therefore, we have that $\|x\rVert_F \leq \sigma$.
+Then the problem \eqref{Hankel Matrix} can be written as 
+\begin{align}\label{Hankel_Matrix_reformulation}
+    \min\hspace{4pt} f(x) + g(y) +\frac{r_k}{2}\|y-\mathcal{H}(x) \rVert_F^2 
+\end{align}
+where $f(x) = \frac{1}{2}\|\mathcal{A}(x)-b\rVert^2 + \delta_{\|\cdot\rVert_F \leq \sigma}(x)$, 
+$g(y) = \delta_{\|\cdot\rVert_* \leq \sigma}(y), r_k = \sqrt{k}$, $\alpha_k =\frac{2}{k+2}$.
+Therefore, we can write the closed form of algorithm $\ref{alg1}$.
+First, we can get SVD decomposition of $y^k - \mathcal{H}(y^k)$, i.e.
+\begin{align}
+    y^k -\mathcal{H}(x^k) = U\Sigma V^T  = U \left(\begin{array}{cccc}
+        \sigma_1 &  & & \\
+          &\sigma_2 & & \\
+          &   & \ddots & \\
+          &   &     &\sigma_s
+    \end{array}\right)  V^T \nonumber
+\end{align}
+Suppose that $i_0$ is the index of the maximum element of $\Sigma$, $U_{i_0}$ is the $i_0$-th row of $U$ and 
+$V^T_{i_0}$ is the $i_0$-th column of $V^T$. 
+In the Frank-Wolfe step, 
+we need  to solve the following subproblem
+\begin{align}
+    \min\limits_{\|y\rVert_* \leq \sigma} \hspace{4pt} \langle y^k - \mathcal{H}(x^k), y\rangle \nonumber
+\end{align}
+whose solution is $\sigma_{i_0}U_{i_0}V_{i_0}^T$. Therefore, the algorithm $\ref{alg1}$ for solving 
+problem $\eqref{Hankel_Matrix_reformulation}$ can be written as follows. 
+\begin{align}
+    \left\{
+        \begin{aligned}
+            x^{k+1} &= \mathrm{Prox}_{\delta_{\|\cdot\rVert_F \leq \sigma}}\left(x^k-\frac{1}{1+\sqrt{k}\mathbf{r}}\left(\mathcal{A^*}\left(\mathcal{A}(x^k)-b\right)
+            +\mathcal{H^*}\left(\mathcal{H}(x^k) -y^k\right)\right)\right) \\
+            u^k &= \sigma_{i_0}U_{i_0}V_{i_0}^T \\
+            y^{k+1} &= y^k+ \alpha_k(u^k-y^k)
+        \end{aligned}
+     \right.
+\end{align}
+
+
+\bibliography{sample}
+
+
+\end{document}
