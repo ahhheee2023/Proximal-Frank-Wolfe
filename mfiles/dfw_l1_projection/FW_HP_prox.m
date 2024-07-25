@@ -1,8 +1,8 @@
-function[y, theta, status, history] = FW_HP_prox(u, poly, e, c_D, opts)
+function [y, theta, x, status, history] = FW_HP_prox(u, poly, e, c_D, opts)
 %This function solves the following problem by the dual-Frank-Wolfe method.
 %min  \|x-u\|_1
 %s.t. x in Lambda(p,e)
-%where  f : (R^n) to (R or {infty}) is the L1 norm 
+%where  f : (R^n) to (R or {infty}) is the L1 norm
 %       Lambda(p,e) (included in R^m) is a pointed hyperbolicity cone associated with hyperbolic polynomial 'poly'
 %       e (in R^m) is a vector in ri(Lambda(p,e))
 %
@@ -28,9 +28,9 @@ function[y, theta, status, history] = FW_HP_prox(u, poly, e, c_D, opts)
 %       If (x_i1,...x_ik) is in the hyperbolicity cone associated with the k-th symmetric polynomial,
 %       set poly{i}.type = "symmetric", poly{i}.index = [i1,...,ik], and poly{i}.deg = k. If you use this option,
 %       (e_i1,...,e_ik) must be (1,...,1).
-%       
+%
 %       Optionally you can give the eigenvalues oracle for poly{i} in
-%       poly{i}.eig. 
+%       poly{i}.eig.
 %e - [m by 1 vector]
 %c_D - real number satisfying Assumpution 1 [real number]
 %opts - contains the following structure variables[datatype], default values are in ():
@@ -70,19 +70,22 @@ function[y, theta, status, history] = FW_HP_prox(u, poly, e, c_D, opts)
 
 %% start of running time measurement
 tic;
-
 %% preprocessing
 
 fval_rec = [];
+y_rec = [];
+theta_rec = [];
+gap_rec = [];
 
 % options
 m = size(u, 1);
-if isfield(opts,'y0'), y0 = opts.y0; else y0 = zeros(m,1); end 
+if isfield(opts,'y0'), y0 = opts.y0; else y0 = zeros(m,1); end
 if isfield(opts,'step'), step = opts.step; else step.rule = 'diminishing'; end
 if isfield(opts,'zero_eps'), zero_eps = opts.zero_eps; else zero_eps = 1e-8; end
 if isfield(opts,'verbose_freq')
     verbose_freq = opts.verbose_freq;
-    fprintf(" Iteration          Time              FW_gap         min_eig    \n")
+    fprintf(" Iteration          Time        Fval           FW_gap         min_eig_g    \n")
+%     fprintf(" Iteration          Time        Fval           FW_gap        \n")
     fprintf("----------------------------------------------------------------\n")
 else verbose_freq=1000; end
 % stopping criteria
@@ -97,7 +100,7 @@ for i = 1:length(poly)
     if poly{i}.type == "symmetric"
         poly{i}.p = @(x) (eleSym(x(poly{i}.index),poly{i}.deg));
         poly{i}.grad = @(x) (grad_eleSym(x,poly{i}.index,poly{i}.deg));
-
+        
     elseif poly{i}.type == "matrix"
         poly{i}.p = @(x) (sum(prod(cat(1,x.^((poly{i}.mat(:,1:end-1)).'),(poly{i}.mat(:,end)).'))));
         poly{i}.deg = sum(poly{i}.mat(1,1:end-1));
@@ -123,20 +126,26 @@ best_gap = Inf;
 best_eig = -Inf;
 best_y = zeros(m,1);
 best_theta = zeros(m, 1);
+best_x = zeros(m,1);
 status.status = 3;
 
 %% main algorithm
 itr = 1;
-while(1)
+while(1) 
+    %     beta_t = sqrt(itr)/m;
     beta_t = sqrt(itr);
+    
     theta_mul = beta_t * theta;
     y_mul = min( max(theta_mul-u, -beta_t), beta_t );
+%     yold = y;
     y = y_mul / beta_t;
-    
-    fval = u'*y;
-    fval_rec = [fval_rec; fval];
-    
+      
     g = theta_mul - y_mul;
+%     x = theta_mul - beta_t*yold;
+    x = g;
+    
+    fval_primal = norm(x -u, 1);
+    fval_rec = [fval_rec; fval_primal];
     
     %calculate eigenvalues of g
     eig_g = eigH(g,e,poly);
@@ -155,29 +164,33 @@ while(1)
         descent = c_D*normal_vec/dot(e,normal_vec) - theta;
     end
     
-    %calculate the Frank-Wolfe gap 
+    %calculate the Frank-Wolfe gap
     gap = -dot(g,descent);
+    gap_rec = [gap_rec; gap];
     
     %If one of the stopping criteria is satisfied, stop
-    if feas 
-        if (gap <= gap_tol) 
+    if feas
+        if (gap <= gap_tol)
             status.status = 1;
+            best_x = x;
             best_y = y;
             best_theta = theta;
             best_gap = gap;
-            break, 
+            break
         elseif (gap < best_gap)
             status.status = 2;
+            best_x = x;
             best_y = y;
             best_theta = theta;
             best_gap = gap;
         end
-    elseif status.status == 3 && min_eig_g > best_eig 
-            best_eig = min_eig_g;
-            best_y = y;
-            best_theta = theta;
+    elseif status.status == 3 && min_eig_g > best_eig
+        best_eig = min_eig_g;
+        best_x = x;
+        best_y = y;
+        best_theta = theta;
     end
-
+    
     if itr >= maxitr
         fprintf("Reached max iteration.\n");
         break;
@@ -186,28 +199,37 @@ while(1)
         fprintf("Reached max time.\n");
         break;
     end
-
-
+    
+    
     %display intermediary results if verbose_freq is set.
     if rem(itr,verbose_freq)==0
         str_time = sprintf("%.5f",toc);
+        str_fval = sprintf("%.5e",fval);
         str_gap = sprintf("%.5e",gap);
         str_itr = sprintf("%d",itr);
-        str_min_eig = sprintf("%.5e",min(eig_g));
+        str_min_eig = sprintf("%.5e", min_eig_g);
         fprintf(blanks(10-strlength(str_itr))+str_itr+'   |  ' ...
-        +blanks(11-strlength(str_time))+str_time+'   |   '+blanks(13-strlength(str_gap))+str_gap ...
-        +'   |   '+blanks(13-strlength(str_min_eig))+str_min_eig+ '\n')
+            +blanks(11-strlength(str_time))+str_time+'   |   '+blanks(13-strlength(str_fval))+str_fval+...
+            '   |   '+blanks(13-strlength(str_gap))+str_gap ...
+            +'   |   '+blanks(13-strlength(str_min_eig))+str_min_eig+ '\n')
     end
     
     %update
     alpha = 2/(itr+2);       % stepsize
     theta = theta + alpha*descent;
+    y_rec = [y_rec, y];
+    theta_rec = [theta_rec, theta];
+    
     itr = itr + 1;
 end
+x = best_x;
 theta = best_theta;
 y = best_y;
 status.FW_gap = best_gap;
 status.itr = itr;
 status.time = toc;
 history.fval_rec = fval_rec;
+history.y_rec = y_rec;
+history.theta_rec = theta_rec;
+history.gap_rec = gap_rec;
 end
