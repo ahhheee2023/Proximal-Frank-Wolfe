@@ -12,6 +12,7 @@
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amsthm}
+\usepackage{color}
 \allowdisplaybreaks
 \numberwithin{equation}{section}
 \newtheorem{theorem}{Theorem}[section]
@@ -57,8 +58,8 @@ efficient in practice.
 
 In this paper, we consider the following problem
 \begin{align} \label{problem}
-    &\min f(x)+g(y) \nonumber  \\
-    &s.t.\hspace{2pt} Ax+By=c, 
+   \min & f(x)+g(y) \nonumber  \\
+    s.t.&\hspace{2pt} Ax+By=c, 
 \end{align}
 where $A: \mathcal{E}_1 \rightarrow \mathcal{E}$, $B: \mathcal{E}_2 \rightarrow \mathcal{E}$ are linear maps, 
 $f: \mathcal{E}_1 \rightarrow \mathbb{R}\cup\{\infty\}$, 
@@ -89,6 +90,8 @@ and $\mathrm{dom}$ $g$ respectively, i.e.,
     Besides, assume that   
     $g = g_1 +g_2$, where $g_1$ is convex and smooth while $g_2$ is nonsmooth. 
 \end{assumption}
+
+{\color{blue}List some examples of $ f $ and $ g $ related to popular applications, or give the reason why we consider such $ f $ and $ g $.}
 
 \begin{assumption} \label{Assumption 2}
     Assume that $\mathrm{dom} f$ and $\mathrm{dom} g$ are bounded, i.e, $D_x<\infty$ and $D_y < \infty$. 
@@ -188,14 +191,14 @@ Besides, our method for solving problem \eqref{problem} also relies on the follo
     Suppose that $f_1$ is smooth and has Lipschitz continuous gradient with constant $L_f$. Similarly, 
     we can also suppose that $g_1$ is smooth and has Lipschitz continuous gradient with constant $L_g$.
 \end{assumption}
-Additionally,  we also consider when $f_1$ and $g_1$ have H\"older continous We say that $f_1$ and 
+Additionally,  we also consider when $f_1$ and $g_1$ have H\"older continuous gradients. We say that $f_1$ and 
 $g_1$ have H\"older continous gradients with exponents $\mu$, $\nu$ and constants $M_f$, $M_g$ respectively if and only if the following assumption hold.
 \begin{assumption} \label{Assumption_holder}
    There exist $\mu \in (0,1)$, $\nu\in (0,1)$, $M_f>0$ and $M_g>0$ such that for all $x_1,y_1 \in \mathrm{dom}f$ and 
    $x_2,y_2\in \mathrm{dom}g$, it holds that 
     \begin{align}
         f_1(y_1) &\leq f_1(x_1) + \left\langle \nabla f_1(x_1), y_1-x_1 \right\rangle +\frac{M_f}{\mu +1}
-        \|y_1-x_1\rVert^{\mu +1}, \nonumber \\
+        \|y_1-x_1\rVert^{\mu +1}, \nonumber\\
         g_1(y_2) & \leq g_1(x_2) + \left\langle \nabla g_1(x_2), y_2-x_2 \right\rangle +\frac{M_g}{\nu+1}
         \|y_2-x_2\rVert^{\nu+1}. \label{Holder_property}
     \end{align}
@@ -1082,6 +1085,7 @@ Consider
 \end{array}
 \end{equation}
 
+
 The dual problem of \eqref{l1_hp} is 
 \begin{equation}\label{dual_hp}
 \begin{array}{cl}
@@ -1118,6 +1122,131 @@ y^t  = \min\{\max\{ \theta_t-u/\beta_t, -\boldmath{1} \} , \boldmath{1} \},\\
 \end{array}
 \right.
 \end{equation}
+
+%\begin{equation*}
+%	\begin{array}{cl}
+%	\min\limits_{x} & \|x-u\|_1\\
+%	{\rm s.t.} & x\in \mathbb{R}^{n, (k)}_+.
+%	\end{array}
+%\end{equation*}
+
+%\begin{table}
+%	\begin{tabular}{c  c   c}
+%		\hline 
+%		Error & Mean $\pm$stdVar & Success Rate \\
+%		10\% &	  6.02 $\pm$	  4.12 &			100.0 \\	      	
+%		5\%&	 16.94 $\pm$	 15.74 &			100.0 \\ 		
+%		1\%&	 46.76 $\pm$	 33.69 &			53.3  \\ 			
+%		0.5\%&	 45.24 $\pm$	 31.62 &			30.0 \\ 			
+%		0.1\%&	 21.94 $\pm$	  9.27 &	 		6.7 \\			
+%		0.05\%&	 23.21 $\pm$	  7.48 &	 		6.7 \\	 			
+%		0.01\%&	 33.70 $\pm$	 22.32 &	 		6.7 \\	 			
+%		0.005\%&	 33.70 $\pm$	 22.32 &	 		6.7 \\	 			
+%		0.001\%&	 33.70 $\pm$	 22.32 &	 		6.7 \\ 	\hline
+%	\end{tabular}
+%\end{table}
+
+
+\subsection{The latent overlapping group Lasso}
+
+Given the overlapping groups $ \{G_1, \cdots, G_K\}=\{1, \cdots, n\} $, the latent group norm \cite[Example~16]{sun2022screening} is define as 
+\begin{equation*}
+	\kappa_{\mathcal{P}}(x):=\min_{s_k\in \mathbb{R}^n}\left\{\sum_{k=1}^K\|s_k\|^2:\; x = \sum_{k=1}^{K} s_k, (s_k)_i=0, \forall i\notin G_k \right\}
+\end{equation*}
+The dual norm of $ \kappa_{\mathcal{P}}(x) $  \cite[Lemma~3]{obozinski2011group} is 
+\begin{equation*}
+	\kappa^*_{\mathcal{P}}(z) = \max\limits_{k=1,\cdots, K}\|z_{G_k}\|,\; \forall z\in\mathbb{R}^n.
+\end{equation*}
+
+%Also, $ \kappa_{\mathcal{P}}(x) $ is a gauge function 
+%\[ \kappa_{\mathcal{P}}(x) = \min\{ \mu\geq 0: x\in \mathcal{P} \}\]
+%with the closed convex set 
+%\[
+% \mathcal{P}:={\rm conv}\left( \bigcup\limits_{k=1}^k\{ s_k\in \mathbb{R}:\; \|s_k\|\le 1, (s_k)_i=0, \forall i\notin G_k \} \right).
+%\]
+
+Consider the latent group Lasso problem
+\begin{equation}
+	\begin{array}{cl}
+	\min\limits_{x\in \mathbb{R}^n} & \|Ax-b\|_1\\
+	{\rm s.t.} & \kappa_P(x)\le c_1.
+	\end{array}
+\end{equation}
+We rewrite it as 
+\begin{equation}
+\begin{array}{cl}
+\min\limits_{x\in \mathbb{R}^n} & \|y\|_1\\
+{\rm s.t.} & y = Ax-b, \; \kappa_P(x)\le c_1, \; \|y\|\le c_2
+\end{array}
+\end{equation}
+We solve the problem with the following iterative scheme
+\begin{equation}
+	\left\{
+	\begin{array}{l}
+	y^{t+1} \in \arg\min \left\{\|y\|_1 +\dfrac{\beta_t}{2}\|y-(Ax^t-b)\|^2:\; \|y\|\le c_2 \right\},\\
+	u^t \in \arg\min \left\{\langle\beta_tA^T(Ax^t-y^{t+1}-b), x\rangle :\;\kappa_{\mathcal{P}}(x)\le c_1 \right\},\\
+	x^{t+1} = x^t+\dfrac{2}{t+2}(u^t-x^t).
+	\end{array}
+	\right.
+\end{equation}
+Let 
+\[
+\widetilde{y} = {\rm sgn}(Ax^t-b)\circ\max\{Ax^t-b - (1/{\beta_t})e, 0\}.
+\]
+From the first subproblem, we have
+\[
+y^{t+1} = \min\{c_2/\|\widetilde y\|, 1\}\widetilde{y}.
+\]
+
+Let $ z^t = \beta_tA^T(Ax^t-y^{t+1}-b) $. The second subproblem above computes the dual norm $ \kappa^*_{\mathcal{P}}(z^t) $. It then holds that $ -z^t\in \partial \delta_{\kappa_{\mathcal{P}}(x)\le c_1}(u^t)  $ and we have
+\[
+u^t\in c_1\partial \kappa^*_{\mathcal{P}}(-z^t).
+\] 
+As in \cite[Section~3.1]{rao2013conditional}, we can set
+\[
+u^t_{G_{k_{\rm max}}}=-\dfrac{c_1z^t_{G_{k_{\rm max}}}}{\|z^t_{G_{k_{\rm max}}}\|}; \; u^t_i = 0, \; i\notin G_{k_{\rm max}}.
+\]
+
+
+%Consider the overlapping group Lasso problem
+%\begin{equation}
+%	\begin{array}{cl}
+%	\min\limits_{x\in \mathbb{R}^n} &\|Ax-b\|_1\\
+%	{\rm s.t.} & \sum\limits_{i=1}^I \|x_{G_i}\|\le \sigma,  \quad \bigcup\limits_{i=1}^I \{G_i\}=\{1, \cdots, n\}.
+%	\end{array}
+%\end{equation}
+%
+%Let $ G_0 = \emptyset $ and set $ |G_0|=0 $. Denote by $ N = \sum_{i=0}^I |G_i|$. We rewrite the group Lasso problems as
+%\begin{equation}\label{gl-xy}
+%	\begin{array}{cl}
+%	\min\limits_{x\in\mathbb{R}^n, y\in \mathbb{R}^N, z\in\mathbb{R}^m}  & \|z\|_1\\
+%	{\rm s.t.} & z = Ax-b ,\;\; \sum \limits_{i=1}^I \|y_{[|G_i|+1:|G_{i+1}|]}\| \le \sigma, \\
+%	& x_{G_i} = y_{[|G_i|+1:|G_{i+1}|]}, \;\; i=0,1,\cdots, I-1.
+%	\end{array}
+%\end{equation}
+%
+%For convenience, we write the last $ I $ linear constraint in \eqref{gl-xy} as $ My = x $ with some matrix $ M\in \mathbb{R}^{n\times N} $, where $ n< N $. Now we solve the penalized problem of \eqref{gl-xy} as follows:
+%\begin{equation*}
+%	\begin{array}{cl}
+%	\min\limits_{x\in\mathbb{R}^n, y\in \mathbb{R}^N, z\in \mathbb{R}^m}  & \|z\|_1 + \dfrac{\beta}{2}\|Ax-z-b\|^2+ \dfrac{\beta}{2}\|Mx-y\|^2 \\
+%	{\rm s.t.} & \sum \limits_{i=1}^I \|y_{\left[|G_i|+1:|G_{i+1}|\right]}\| \le \sigma, \;\;\|x\|\le \sigma\;\; \|z\|\le \widetilde{z}.
+%	\end{array}
+%\end{equation*}
+%
+%We use the algorithm 
+%\begin{equation}\label{alg_steps_gl}
+%\left\{  
+%\begin{array}{l}
+%%x^t \in \arg\min \left\{\langle \nabla f(x^t)+\beta_tM^T(Mx^t-y^t), x\rangle +\dfrac{L_f+\beta_t\sqrt{\lambda_{\rm max}(M^TM)}}{2}\|x-x^t\|^2:~ \|x\|\le \sigma\right\},\\
+%z^t\in \arg\min \left\{ \|z\|_1+\langle z^t-Ax^t+b, z\rangle +\dfrac{\beta_t}{2}\|z-z^t\|^2:~\|z\|\le \widetilde\sigma  \right\} \\
+%x^t \in \arg\min \left\{ 
+% \langle\beta_t A^T(Ax^t-z^t-b)+ M^T(Mx^t-y^t), x\rangle +\dfrac{\beta_t(L_A+L_M)}{2}\|x-x^t\|: ~\|x\|\le \sigma, \right\} \\
+%y^t \in\arg\min \left\{\langle \beta_t(y^t-Mx^{t+1}), y\rangle:~  \sum \limits_{i=1}^I \|y_{\left[|G_i|+1:|G_{i+1}|\right]}\| \le \sigma \right\}.
+%\end{array}
+%\right.
+%\end{equation}
+
+
 
 
 \bibliography{sample}
