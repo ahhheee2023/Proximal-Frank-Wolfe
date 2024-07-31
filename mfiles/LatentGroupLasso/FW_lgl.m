@@ -57,9 +57,15 @@ while 1
     fval_rec(iter,1) = fval;
     
     % % update of y
-    yplus = Axb - 1/beta;
+    yplus = abs(Axb) - 1/beta;
     ytilde = sign(yplus).*max(yplus, 0);   % soft thresholding
-    y = min(c2/norm(ytilde), 1) * ytilde;
+%     y = min(c2/norm(ytilde), 1) * ytilde;
+    nm_ytld = norm(ytilde);
+    if nm_ytld < c2
+        y = ytilde;
+    else
+        y = (c2/ytilde)*ytilde;
+    end
     
     % % update of x using the FW linear oracle
     z = beta*(A'*(Axb-y));
