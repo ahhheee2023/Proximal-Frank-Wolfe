@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jul 30 15:35:25 2024
+Created on Thu Aug  1 09:45:51 2024
 
 @author: zly
 """
@@ -10,9 +10,9 @@ from numpy.linalg import norm
 from scipy.sparse.linalg import svds
 
 
-def FW_lgl(A, b, c1, K, Grps,opts, gap_tol=1e-8):
+def FW_sparselgl(A, b, mu, c1, K, Grps,opts, gap_tol=1e-8):
     """
-    This solves: min ||Ax-b||_1  subject to Kappa(x) <= c_1,
+    This solves: min ||Ax-b||_2 + mu||x||_1  subject to Kappa(x) <= c_1,
     where Kappa is the latent group norm
     
     Inputs:
@@ -32,11 +32,12 @@ def FW_lgl(A, b, c1, K, Grps,opts, gap_tol=1e-8):
     FWgap_rec = []
     history = {}
     
-    if 'noiseLev' in opts:
-        c2 = opts['noiseLev']
+    if 'L_A' in opts:
+        L_A = opts['L_A']
     else:
-        lambdaA = svds(A, k=1)
-        c2 = lambdaA*c1 + norm(b)
+        u, s, v = svds(A, 1)
+        L_A = s**2
+         
     
     if 'xinit' in opts:
         xinit = opts['xinit']
@@ -54,28 +55,30 @@ def FW_lgl(A, b, c1, K, Grps,opts, gap_tol=1e-8):
         maxiter = np.inf
      
     x = xinit
+    y = x
     itr = 1
     
     print("%6s  %8s  %8s \n" % ('iter', 'fvale', 'FW_gap'))
     while 1==1:
         beta = np.sqrt(itr)
         Axb = A@x - b
-        fval = norm(Axb,1)
+        fval = norm(Axb) ** 2 / 2
         fval_rec = np.append(fval_rec, fval)
         
-        # update of y
-        yplus = np.absolute(Axb) - 1/beta
-        ytilde = np.sign(yplus) * np.maximum(yplus,0)
-        # y = np.min([c2/norm(ytilde), 1]) * ytilde
-        # print(norm(ytilde))
-        nm_ytld = norm(ytilde)
-        if nm_ytld < c2:
-            y = ytilde
+        # update of x by computing its soft thresholding and projection onto a ball ||x||<=c1
+        v_tmp = L_A*y + beta * x - A.T@Axb
+        xplus = np.absolute(v_tmp) - mu
+        xtilde = ( np.sign(v_tmp) * np.maximum(xplus,0) ) / (beta+L_A)
+        # x = np.min([c1/norm(xtilde), 1]) * xtilde
+        # print(norm(xtilde))
+        nm_xtld = norm(xtilde)
+        if nm_xtld < c1:
+            x = xtilde
         else:
-            y = (c2/nm_ytld)*ytilde
+            x = (c1/nm_xtld)*xtilde
         
-        # update of x using the FW linear oracle
-        z = beta * (np.transpose(A) @ (Axb - y))
+        # update of y using the FW linear oracle
+        z = beta * (y-x)
         norms = []
         for k in range(0,K):
             norms = np.append( norms, norm(z[Grps[k]]) )
@@ -84,9 +87,9 @@ def FW_lgl(A, b, c1, K, Grps,opts, gap_tol=1e-8):
         gmax = np.argmax(norms)
         zGkmax = z[Grps[gmax]]
         sk = (c1/normmax)*zGkmax
-        dneg = sk + x[Grps[gmax]]
+        dneg = sk + y[Grps[gmax]]
         alpha = 2/(itr+2)
-        x[Grps[gmax]] = x[Grps[gmax]] -alpha* dneg
+        y[Grps[gmax]] = y[Grps[gmax]] - alpha* dneg
         
         FWgap = zGkmax @ dneg
         FWgap_rec = np.append(FWgap_rec,FWgap)

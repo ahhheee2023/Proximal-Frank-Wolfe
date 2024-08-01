@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jul 31 17:50:26 2024
+Created on Thu Aug  1 12:19:58 2024
 
 @author: zly
 """
@@ -13,7 +13,7 @@ from numpy.random import rand
 import random
 from scipy.sparse.linalg import svds
 import matplotlib.pyplot as plt
-import latentGL
+import sparseLatentGL
 
 random.seed(10)
 
@@ -44,23 +44,27 @@ for j in range(0,len(J),1):
     lglnm_xorig = lglnm_xorig + norm(sk_orig)
     
 c1 = 0.95*lglnm_xorig
+
 At = randn(n,m)
 for j in range(0,n,1):
     At[j] = At[j]/norm(At[j])
-A = np.transpose(At)
+A = At.T
 
-error = nf * ( rand(m)*rand(m) - rand(m)*rand(m) )  # Laplacian noise
+error = nf *rand(m)   # Gaussian noise
 b = A @ xorig + error
 
+mu = 0.1 # the parameter of the sparsity regularizer; need to do cross-validation fot mu
+
 opts = {}
-opts['verbose_freq']  = 100
-opts['maxiter'] = 500
-u,L,vh = svds(A,1)
-opts['noiseLev'] = L*c1 + norm(b) 
+opts['verbose_freq']  = 1000
+opts['maxiter'] = 5000
+u, s, v = svds(A, 1)   # eigs(A@A.T) gives a complex number in python...
+L_A = s**2
+opts['L_A'] = L_A
+
 
 opts['xinit'] = np.zeros(n)
-x,y,itr,history = latentGL.FW_lgl(A,b,c1,K, Grps, opts)
-
+x,y,itr,history = sparseLatentGL.FW_sparselgl(A, b, mu, c1, K, Grps, opts)
 
 plt.figure(dpi=800)
 plt.plot(np.arange(0,n),xorig,'ro', np.arange(0,n),x,'b*')
@@ -84,3 +88,8 @@ plt.xlim(0,itr)
 plt.show()
 
 
+
+
+
+    
+    
