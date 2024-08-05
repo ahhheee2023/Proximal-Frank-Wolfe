@@ -1191,7 +1191,7 @@ We solve the problem with the following iterative scheme
 \end{equation}
 Let 
 \[
-\widetilde{y} = {\rm sgn}(Ax^t-b)\circ\max\{Ax^t-b - (1/{\beta_t})e, 0\}.
+\widetilde{y} = {\rm sgn}(Ax^t-b)\circ\max\{|Ax^t-b| - (1/{\beta_t})e, 0\}.
 \]
 From the first subproblem, we have
 \[
@@ -1206,6 +1206,37 @@ As in \cite[Section~3.1]{rao2013conditional}, we can set
 \[
 u^t_{G_{k_{\rm max}}}=-\dfrac{c_1z^t_{G_{k_{\rm max}}}}{\|z^t_{G_{k_{\rm max}}}\|}; \; u^t_i = 0, \; i\notin G_{k_{\rm max}}.
 \]
+
+\subsection{Sparse latent group Lasso}
+\begin{equation}
+	\begin{array}{cl}
+	\min\limits_{x} & \frac12\|Ax-b\|^2 +\mu \|x\|_1\\
+	{\rm s.t.} & \kappa_{\mathcal{P}}(x)\leq c_1.
+	\end{array}
+\end{equation}
+
+\begin{equation}
+	\begin{array}{cl}
+	\min\limits_{x,y} & \frac12\|Ax-b\|^2 +\mu \|x\|_1\\
+	{\rm s.t.} & \|x\|\le c_1,\; \kappa_{\mathcal{P}}(y)\leq c_1, \; y=x.
+	\end{array}
+\end{equation}
+\begin{equation}
+	\begin{array}{cl}
+	\min\limits_{x,y}  & \frac12\|Ax-b\|^2 +\mu \|x\|_1 + \frac{\beta}{2}\|x-y\|^2\\
+		{\rm s.t.} & \|x\|\le c_1,\; \kappa_{\mathcal{P}}(y)\leq c_1.
+	\end{array}
+\end{equation}
+
+\begin{equation}
+\left\{
+\begin{array}{l}
+x^{t+1} \in \arg\min\limits_{ \|x\|\le c_1} \mu\|x\|_1 + \langle A^T(Ax^t-b)+\beta_t(x^t-y^t), x\rangle+\dfrac{\beta_t+L_A}{2}\|x - x^t\|^2\\
+u^t \in \arg\min \left\{\langle\beta_t(y^t - x^{t+1}), x\rangle :\;\kappa_{\mathcal{P}}(y)\le c_1 \right\},\\
+y^{t+1} = y^t+\dfrac{2}{t+2}(u^t-y^t).
+\end{array}
+\right.
+\end{equation}
 
 
 %Consider the overlapping group Lasso problem
