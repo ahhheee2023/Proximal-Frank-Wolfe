@@ -39,7 +39,7 @@ xorig = reshape(Xorig, N*T, 1);   % vector of size (N*T, 1);
 
 % % generate Phi_t's and b_t's
 m = 500;   % the number of observations for each task; The observation matrix Phi_t is of size (m, N);
-nf = 0.01;    % noise factor on the observations; 0.1 and 0.05 is hard: rec_err is about 0.12 even m=800,1000
+nf = 0.01;    % noise factor on the observations; 0.1 and 0.05 is hard: rec_err is about 0.12 even take m=800,1000
 Phi_all = cell(T,1);
 b_all = cell(T,1);
 L_all = zeros(T, 1);
@@ -87,7 +87,7 @@ opts.xinit = zeros(n,1);
 
 
 c1 = 0.95*lgnm_xorig;
-mu = 0.10;        % when the nf is small, can choose mu about 0.1 and m =500; larger m does not help
+mu = 0.10;        % when the nf is small, can choose mu about 0.1
 [x, y, iter, history] =  FW_sparselgl(@f_mtl, f_args, n, mu, c1, K, Grps, opts);
 
 rel_err = norm(xorig - x)/max(norm(xorig),1);
@@ -124,6 +124,27 @@ ylabel('log(x-y)')
 % xlabel('Iterates');
 % ylabel('log(FW gap)');
 
+
+
+function [grad, fval] = f_mtl(x, f_args)
+Phi_all = f_args{1};
+b_all = f_args{2};
+T = f_args{3};
+N = f_args{4};
+
+fval = 0;
+grad = zeros(N, 1);
+for t = 1:T
+    A = Phi_all{t};
+    b = b_all{t};
+    Axb = A * x(N*(t-1)+1: N*t) - b;
+    grad( N*(t-1)+1: N*t ) = A'*Axb;
+    if nargout > 1
+        fval = fval + norm( Axb )^2/2;
+    end
+end  
+
+end
 
 
 
