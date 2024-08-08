@@ -51,10 +51,10 @@ grad = f_hdl(x, f_args);
 iter = 1;
 fprintf('%6s    %8s   %8s   %8s    %8s \n', 'iter', 'fval', 'fval_sc', 'lc_res',  'FW_gap');
 while 1
-    beta = sqrt(iter);
+    beta = sqrt(iter)/10;
     
     % % update of x
-    v_tmp = L_f*y+beta*x - grad;
+    v_tmp = L_f*x+beta*y - grad;
     xplus= abs(v_tmp) - mu;   
     xtilde = (sign(v_tmp).*max(xplus, 0)) / (beta+L_f);
     nm_xtld = norm(xtilde);
