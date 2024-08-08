@@ -1205,87 +1205,105 @@ y^t  = \min\{\max\{ \theta_t-u/\beta_t, -\boldmath{1} \} , \boldmath{1} \},\\
 %\end{table}
 
 
-\subsection{The latent overlapping group Lasso}
-
-Given the overlapping groups $ \{G_1, \cdots, G_K\}=\{1, \cdots, n\} $, the latent group norm \cite[Example~16]{sun2022screening} is define as 
-\begin{equation*}
-	\kappa_{\mathcal{P}}(x):=\min_{s_k\in \mathbb{R}^n}\left\{\sum_{k=1}^K\|s_k\|^2:\; x = \sum_{k=1}^{K} s_k, (s_k)_i=0, \forall i\notin G_k \right\}
-\end{equation*}
-The dual norm of $ \kappa_{\mathcal{P}}(x) $  \cite[Lemma~3]{obozinski2011group} is 
-\begin{equation*}
-	\kappa^*_{\mathcal{P}}(z) = \max\limits_{k=1,\cdots, K}\|z_{G_k}\|,\; \forall z\in\mathbb{R}^n.
-\end{equation*}
-
-%Also, $ \kappa_{\mathcal{P}}(x) $ is a gauge function 
-%\[ \kappa_{\mathcal{P}}(x) = \min\{ \mu\geq 0: x\in \mathcal{P} \}\]
-%with the closed convex set 
+%\subsection{The latent group Lasso}
+%
+%Given a set of overlapping groups $ \{G_1, \cdots, G_K\}$ satisfying $\bigcup\limits_{k=1}^K = \{1, \cdots, n\} $, the latent group norm \cite{obozinski2011group} is define as 
+%\begin{equation*}
+%	\kappa_{\mathcal{P}}(x):=\min_{s_k\in \mathbb{R}^n}\left\{\sum_{k=1}^K\|s_k\|^2:\; x = \sum_{k=1}^{K} s_k, (s_k)_i=0, \forall i\notin G_k \right\}
+%\end{equation*}
+%The dual norm of $ \kappa_{\mathcal{P}}(x) $  \cite[Lemma~3]{obozinski2011group} is 
+%\begin{equation*}
+%	\kappa^*_{\mathcal{P}}(z) = \max\limits_{k=1,\cdots, K}\|z_{G_k}\|,\; \forall z\in\mathbb{R}^n.
+%\end{equation*}
+%
+%%Also, $ \kappa_{\mathcal{P}}(x) $ is a gauge function 
+%%\[ \kappa_{\mathcal{P}}(x) = \min\{ \mu\geq 0: x\in \mathcal{P} \}\]
+%%with the closed convex set 
+%%\[
+%% \mathcal{P}:={\rm conv}\left( \bigcup\limits_{k=1}^k\{ s_k\in \mathbb{R}:\; \|s_k\|\le 1, (s_k)_i=0, \forall i\notin G_k \} \right).
+%%\]
+%
+%Consider the latent group Lasso problem
+%\begin{equation}
+%	\begin{array}{cl}
+%	\min\limits_{x\in \mathbb{R}^n} & \|Ax-b\|_1\\
+%	{\rm s.t.} & \kappa_P(x)\le c_1.
+%	\end{array}
+%\end{equation}
+%We rewrite it as 
+%\begin{equation}
+%\begin{array}{cl}
+%\min\limits_{x\in \mathbb{R}^n} & \|y\|_1\\
+%{\rm s.t.} & y = Ax-b, \; \kappa_P(x)\le c_1, \; \|y\|\le c_2
+%\end{array}
+%\end{equation}
+%We solve the problem with the following iterative scheme
+%\begin{equation}
+%	\left\{
+%	\begin{array}{l}
+%	y^{t+1} \in \arg\min \left\{\|y\|_1 +\dfrac{\beta_t}{2}\|y-(Ax^t-b)\|^2:\; \|y\|\le c_2 \right\},\\
+%	u^t \in \arg\min \left\{\langle\beta_tA^T(Ax^t-y^{t+1}-b), x\rangle :\;\kappa_{\mathcal{P}}(x)\le c_1 \right\},\\
+%	x^{t+1} = x^t+\dfrac{2}{t+2}(u^t-x^t).
+%	\end{array}
+%	\right.
+%\end{equation}
+%Let 
 %\[
-% \mathcal{P}:={\rm conv}\left( \bigcup\limits_{k=1}^k\{ s_k\in \mathbb{R}:\; \|s_k\|\le 1, (s_k)_i=0, \forall i\notin G_k \} \right).
+%\widetilde{y} = {\rm sgn}(Ax^t-b)\circ\max\{Ax^t-b - (1/{\beta_t})e, 0\}.
+%\]
+%From the first subproblem, we have
+%\[
+%y^{t+1} = \min\{c_2/\|\widetilde y\|, 1\}\widetilde{y}.
+%\]
+%
+%Let $ z^t = \beta_tA^T(Ax^t-y^{t+1}-b) $. The second subproblem above computes the dual norm $ \kappa^*_{\mathcal{P}}(z^t) $ of the latent group norm \cite[Example~16]{sun2022screening}. It then holds that $ -z^t\in \partial \delta_{\kappa_{\mathcal{P}}(x)\le c_1}(u^t)  $ and we have
+%\[
+%u^t\in c_1\partial \kappa^*_{\mathcal{P}}(-z^t).
+%\] 
+%As in \cite[Section~3.1]{rao2013conditional}, we can set
+%\[
+%u^t_{G_{k_{\rm max}}}=-\dfrac{c_1z^t_{G_{k_{\rm max}}}}{\|z^t_{G_{k_{\rm max}}}\|}; \; u^t_i = 0, \; i\notin G_{k_{\rm max}}.
 %\]
 
-Consider the latent group Lasso problem
-\begin{equation}
-	\begin{array}{cl}
-	\min\limits_{x\in \mathbb{R}^n} & \|Ax-b\|_1\\
-	{\rm s.t.} & \kappa_P(x)\le c_1.
-	\end{array}
-\end{equation}
-We rewrite it as 
-\begin{equation}
-\begin{array}{cl}
-\min\limits_{x\in \mathbb{R}^n} & \|y\|_1\\
-{\rm s.t.} & y = Ax-b, \; \kappa_P(x)\le c_1, \; \|y\|\le c_2
-\end{array}
-\end{equation}
-We solve the problem with the following iterative scheme
-\begin{equation}
-	\left\{
-	\begin{array}{l}
-	y^{t+1} \in \arg\min \left\{\|y\|_1 +\dfrac{\beta_t}{2}\|y-(Ax^t-b)\|^2:\; \|y\|\le c_2 \right\},\\
-	u^t \in \arg\min \left\{\langle\beta_tA^T(Ax^t-y^{t+1}-b), x\rangle :\;\kappa_{\mathcal{P}}(x)\le c_1 \right\},\\
-	x^{t+1} = x^t+\dfrac{2}{t+2}(u^t-x^t).
-	\end{array}
-	\right.
-\end{equation}
-Let 
-\[
-\widetilde{y} = {\rm sgn}(Ax^t-b)\circ\max\{Ax^t-b - (1/{\beta_t})e, 0\}.
-\]
-From the first subproblem, we have
-\[
-y^{t+1} = \min\{c_2/\|\widetilde y\|, 1\}\widetilde{y}.
-\]
-
-Let $ z^t = \beta_tA^T(Ax^t-y^{t+1}-b) $. The second subproblem above computes the dual norm $ \kappa^*_{\mathcal{P}}(z^t) $. It then holds that $ -z^t\in \partial \delta_{\kappa_{\mathcal{P}}(x)\le c_1}(u^t)  $ and we have
-\[
-u^t\in c_1\partial \kappa^*_{\mathcal{P}}(-z^t).
-\] 
-As in \cite[Section~3.1]{rao2013conditional}, we can set
-\[
-u^t_{G_{k_{\rm max}}}=-\dfrac{c_1z^t_{G_{k_{\rm max}}}}{\|z^t_{G_{k_{\rm max}}}\|}; \; u^t_i = 0, \; i\notin G_{k_{\rm max}}.
-\]
-
 \subsection{Sparse latent group Lasso}
-\begin{equation}
+
+%The dual norm of $ \kappa_{\mathcal{P}}(x) $  \cite[Lemma~3]{obozinski2011group} is of the form
+%\begin{equation*}
+%\kappa^*_{\mathcal{P}}(z) = \max\limits_{k=1,\cdots, K}\|z_{G_k}\|,\; \forall z\in\mathbb{R}^n.
+%\end{equation*}
+
+In this section, we consider the sparse multi-task learning (sMTL) problem \cite{rao2013sparse} that enjoys sparsity both in feature group selection and features learning \cite{rao2013sparse}.  The sMTL problem is to find a similar underlying sparse representation shared across related tasks. Conceptually, all tasks first select from few subsets (groups) of the possible features and then every task determine a sparse representation on features from the selected groups. To characterize the structural group sparsity in sMTL, one can use the latent group norm regularizer defined in \cite{obozinski2011group, rao2013sparse}. 
+
+Given the overlapping groups $ \{G_1, \cdots, G_K\}$ satisfying $\bigcup\limits_{k=1}^K = \{1, \cdots, n\} $, the latent group norm  \cite{obozinski2011group} of $ x\in\mathbb{R}^n $ is define as 
+\begin{equation*}
+\kappa_{\mathcal{P}}(x):=\min_{s_k\in \mathbb{R}^n}\left\{\sum_{k=1}^K\|s_k\|^2:\; x = \sum_{k=1}^{K} s_k, (s_k)_i=0, \forall i\notin G_k \right\}.
+\end{equation*}
+Compared to the group norm $ \sum_{k=1}^{K}\|x_{G_k}\| $, the latent group norm could induce nonzero support at the overlapping zones of selected and unselected groups. We refer the readers to \cite[Figure~1]{obozinski2011group} for a more intuitive comprehension on the comparison.
+
+In our numerical experiments, we generate some synthetic data of sMTL problems. Suppose that there are  $ \mathcal{T}=20 $ tasks and $ N=2002 $ features. The $ N $ features are grouped into $ K=500 $ overlapping groups $ G_1=\{1,2,3,4,5,6\} $, $ G_2=\{5,6,7,8,9,10\} $, where each group has batch size $ B=6 $ and every next two groups has $ 2 $ overlapping features. Among those groups, only $ s_g\ll K $ groups are active for all tasks. For each $ t=1,\cdots,  \mathcal{T}$ task, we set $ m=500 $ measurements. We randomly generate $  \mathcal{T} $ matrices $ M_1,\cdots, M_ \mathcal{T}\in \mathbb{R}^{m\times N} $ with i.i.d Gaussian entries. For every task $ t=1,\cdots,  \mathcal{T}$, we form the data matrix $ A_t\in\mathbb{R}^{m\times N} $ by normalizing the columns of $ A_t $. Suppose that $ x_t\in\mathbb{R}^N $ is the true parameter vector for task $ t $.  We then set the observation vector of task $ t $ as $ b_t = A_t x+ 0.01\epsilon $, where $ \epsilon $ is the Gaussian noise. 
+
+For convenience, we denote $ A\in\mathbb{R}^{m \mathcal{T}\times N \mathcal{T}} $ the block diagonal matrix whose diagonals are $ A_t $, $ t=1,\cdots, \mathcal{T} $. Let $ x=[x_1^T, x_2^T,\cdots, x_ \mathcal{T}^T]^T\in \mathbb{R}^{N\mathcal{T}} $ and $ b = [b_1^T,b_2^T,\cdots,b_\mathcal{T}^T]^T\in \mathbb{m\mathcal{T}} $. We formulate the multi-task learning problem as a sparse latent group Lasso problem as in \eqref{sparselgl}, where the $ \ell_1 $ regularizer is for the element-wise sparsity and the latent group norm $ \kappa_{\mathcal{P}} $ is for the group sparsity. 
+\begin{equation}\label{sparselgl}
 	\begin{array}{cl}
 	\min\limits_{x} & \frac12\|Ax-b\|^2 +\mu \|x\|_1\\
 	{\rm s.t.} & \kappa_{\mathcal{P}}(x)\leq c_1.
 	\end{array}
 \end{equation}
 
+Note that there is no closed-form solution for the projection onto the latent group norm ball\cite{rao2013conditional}. Instead of projections, we apply Algorithm~\ref{alg1} to solve the MTL problem that involves a linear oracle with closed-form solution defined over the latent group norm ball. To adapt the algorithm, we introduce an additional variable $ y $ and write \eqref{sparselgl} as the following equivalent formulation:
 \begin{equation}
 	\begin{array}{cl}
 	\min\limits_{x,y} & \frac12\|Ax-b\|^2 +\mu \|x\|_1\\
 	{\rm s.t.} & \|x\|\le c_1,\; \kappa_{\mathcal{P}}(y)\leq c_1, \; y=x.
 	\end{array}
 \end{equation}
-\begin{equation}
-	\begin{array}{cl}
-	\min\limits_{x,y}  & \frac12\|Ax-b\|^2 +\mu \|x\|_1 + \frac{\beta}{2}\|x-y\|^2\\
-		{\rm s.t.} & \|x\|\le c_1,\; \kappa_{\mathcal{P}}(y)\leq c_1.
-	\end{array}
-\end{equation}
-
+Let $ f(x) = \frac{1}{2}\|Ax-b\|^2 + \mu\|x\|_1+\delta_{\|\cdot\|_1\le c_1}(x) $, $ g(y) = \delta_{\kappa_{\mathcal{P}}\le c_1}(y) $ and $ h(x,y) = \frac{1}2\|x-y\|^2$ in \eqref{problem_2}. The subproblems for updating $ x $ and $ y $ of the iterative scheme in Algorithm~\ref{alg1} then solves:
+%\begin{equation}
+%	\begin{array}{cl}
+%	\min\limits_{x,y}  & \frac12\|Ax-b\|^2 +\mu \|x\|_1 + \frac{\beta}{2}\|x-y\|^2\\
+%		{\rm s.t.} & \|x\|\le c_1,\; \kappa_{\mathcal{P}}(y)\leq c_1.
+%	\end{array}
+%\end{equation}
 \begin{equation}
 \left\{
 \begin{array}{l}
@@ -1295,6 +1313,20 @@ y^{t+1} = y^t+\dfrac{2}{t+2}(u^t-y^t).
 \end{array}
 \right.
 \end{equation}
+Here, $ L_A $ is an upper bound on the largest eigenvalue of $ A^TA $.
+Both the subproblems above allow closed-form solutions. Let $ g^t = \dfrac{1}{L_A+\beta_t}(L_Ax^t+\beta_t y^t - A^T(Ax-b))  $  $z^t = \beta_t(y^t-x^{t+1}) $. The subproblem for $ u $ above actually computes the dual norm of the latent norm of $ -z^t $ \cite{obozinski2011group,sun2022screening}. Specifically, we can choose
+\begin{equation}
+\left\{
+\begin{array}{l}
+x^{t+1} = {\rm Proj}_{\|\cdot\|\le c_1}({\rm Prox}_{\frac{\mu}{L_A+\beta_t}}(g^t) )\\
+u^t = -\dfrac{c_1z_{G_{\rm max}}}{\|z_{G_{\rm max}}\|},
+\end{array}
+\right.
+\end{equation} 
+where $ G_{\rm max}\in \arg\max\{\|z_{G_k}\|: \, k=1,\cdots, K \} $. Here we choose $ u^t $ as in \cite[Part ~B, Section~IV]{rao2013sparse}.
+ 
+
+
 
 
 %Consider the overlapping group Lasso problem
