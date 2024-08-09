@@ -39,7 +39,7 @@ xorig = reshape(Xorig, N*T, 1);   % vector of size (N*T, 1);
 
 % % generate Phi_t's and b_t's
 m = 500;   % the number of observations for each task; The observation matrix Phi_t is of size (m, N);
-nf = 0.01;    % noise factor on the observations; 0.1 and 0.05 is hard
+nf = 0.01;    % noise factor on the observations; 0.1 and 0.05 is hard: rec_err is about 0.12 even m=800,1000
 Phi_all = cell(T,1);
 b_all = cell(T,1);
 L_all = zeros(T, 1);
@@ -70,6 +70,7 @@ for k = 1: K
     Grps{k} = itmp;
 end
 
+
 f_args = cell(4,1);
 f_args{1,1} = Phi_all;
 f_args{2,1} = b_all;
@@ -80,18 +81,25 @@ n = N*T;
 
 opts.verbose_freq = 1000;
 opts.maxiter = 10000;
+% sigma_A = svds(A, 1);
+% opts.L_A = sigma_A^2;
 opts.L_f = max(L_all);
 opts.xinit = zeros(n,1);
 
 
 c1 = 0.95*lgnm_xorig;
-mu = 0.05;        % when the nf is small, can choose mu about 0.1
+mu = 0.025;        % when the nf is small, can choose mu about 0.02
+
 [x, y, iter, history] =  FW_sparselgl(@f_mtl, f_args, n, mu, c1, K, Grps, opts);
 
-rel_err = norm(xorig - x)/max(norm(xorig),1);
+rec_err = norm(xorig - x)/max(norm(xorig),1);
 X = reshape(x, N, T);
 nnz_x = sum(abs(x)>1e-6);
 nnz_orig = sum(abs(xorig)>1e-6);
+
+filename = ['MTL-testinstances' '---' 'm-' int2str(m)  '--'  'nf-'  num2str(nf, '%2.0e') '-mu--' num2str(mu) ];
+save(filename, 'T', 'N',  'm',  'K', 'Grps',  'J', 'Phi_all', 'b_all', 'Xorig',  'lgnm_xorig',  'L_all', ...
+    'x', 'rec_err', 'nnz_x')
 
 figure;
 plot(1:n, xorig, 'bo',1:n, x, 'r*');

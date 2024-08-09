@@ -31,11 +31,17 @@ if isfield(opts, 'maxiter')
 else
     maxiter = inf;
 end
+% 
+% if isfield(opts, 'gap_tol')
+%     gap_tol = opts.gap_tol;
+% else
+%     gap_tol = 1e-8;
+% end
 
-if isfield(opts, 'gap_tol')
-    gap_tol = opts.gap_tol;
+if isfield(opts, 'scale_beta')
+    scale_beta = opts.scale_beta;
 else
-    gap_tol = 1e-8;
+    scale_beta = 1;
 end
 
 if isfield(opts, 'verbose_freq')
@@ -51,10 +57,11 @@ grad = f_hdl(x, f_args);
 iter = 1;
 fprintf('%6s    %8s   %8s   %8s    %8s \n', 'iter', 'fval', 'fval_sc', 'lc_res',  'FW_gap');
 while 1
-    beta = sqrt(iter)/10;
+    beta = sqrt(iter)*scale_beta;
     
     % % update of x
-    v_tmp = L_f*x+beta*y - grad;
+    v_tmp = L_f*x + beta*y -grad;   % the right formula
+%     v_tmp = L_f*y+beta*x - grad;    % these parameter L_f and beta made a better recovery..
     xplus= abs(v_tmp) - mu;   
     xtilde = (sign(v_tmp).*max(xplus, 0)) / (beta+L_f);
     nm_xtld = norm(xtilde);
