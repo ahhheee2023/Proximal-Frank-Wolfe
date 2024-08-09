@@ -85,10 +85,11 @@ opts.maxiter = 10000;
 % opts.L_A = sigma_A^2;
 opts.L_f = max(L_all);
 opts.xinit = zeros(n,1);
+opts.scale_beta = 0.1;
 
 
 c1 = 0.95*lgnm_xorig;
-mu = 0.025;        % when the nf is small, can choose mu about 0.02
+mu = 0.03;        % when the nf is small, can choose mu about 0.03
 
 [x, y, iter, history] =  FW_sparselgl(@f_mtl, f_args, n, mu, c1, K, Grps, opts);
 

@@ -1,3 +1,7 @@
+% % test the sparse latent group Lasso with model
+% % min ||Ax-b||^2/2 + mu*||x||_1
+% % s.t. Kappa(x) <=  c_1
+
 clear;
 close all
 
